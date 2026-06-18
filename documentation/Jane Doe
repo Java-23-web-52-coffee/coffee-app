@@ -1,0 +1,25 @@
+Persona 2
+
+Jane Doe
+
+Dog owner with specific food preferences that wants to find coffee shops easier, and let others with similar preferences know where they can locate these shops.
+
+As a new user, I want to be able to contribute by providing info to others users about vegan and dog friendly coffee shops.
+
+tech: iPhone user, laptop user
+needs: An app that can quickly find vegan shops that are pet friendly.
+proficiency: Often uses her phone and laptop to work from home.
+likes: Applications that include many ways to filter different things she's looking for.
+dislikes: When applications are not inclusive and she cannot find what she's looking for, She has to do a bunch of resource to find one thing, not being able to access something on her phone.
+
+registered user
+Interaction flow:
+Jane Doe signs into the coffee website
+Website logs her in and takes Jane to the webpage
+webpage displays box asking her to input filters to look for a shop, ask her to rate the last shop she chose, or see where other users have recently gone.
+She clicks on the button asking her to rate the last coffee shop she visited
+Website takes her to review page
+Jane selects "dog friendly" "cozy" "quiet" as tags for coffeeshop
+Jane clicks complete
+Webpage saves her results
+Jane clicks "sign out"
