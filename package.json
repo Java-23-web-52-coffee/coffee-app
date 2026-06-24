@@ -1,0 +1,27 @@
+{
+  "name": "sprint-1",
+  "version": "1.0.0",
+  "description": "Sprint 1 for capstone project",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Java-23-web-52-coffee/sprint-1.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Java-23-web-52-coffee/sprint-1/issues"
+  },
+  "homepage": "https://github.com/Java-23-web-52-coffee/sprint-1#readme",
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.1",
+    "tailwindcss": "^4.3.1",
+    "vite": "^8.0.16"
+  }
+}
