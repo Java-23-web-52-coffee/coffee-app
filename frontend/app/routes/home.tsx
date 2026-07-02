@@ -1,4 +1,5 @@
 import type { Route } from './+types/home';
+import {Navigation} from "../layouts/nav/navbar";
 
 
 export function meta({}: Route.MetaArgs) {
@@ -11,7 +12,11 @@ export function meta({}: Route.MetaArgs) {
 export default function Home() {
   return(
       <>
-        <h1 className={'text-3xl font-bold'}> Home </h1>
+
+<h1>Home</h1>
+
+
+
       </>
   )
 
