@@ -26,11 +26,7 @@ import {Outlet} from "react-router";
                 <div className="flex md:order-2">
                     <Dropdown
                         arrowIcon={false}
-                        inline
-                        label={
-                            <Avatar alt="User settings" img="https://flowbite.com/docs/images/people/profile-picture-5.jpg" rounded />
-                        }
-                    >
+                        inline>
                         <DropdownHeader>
                             <span className="block text-sm">Bob Jolly</span>
                             <span className="block truncate text-sm font-medium">name@flowbite.com</span>
