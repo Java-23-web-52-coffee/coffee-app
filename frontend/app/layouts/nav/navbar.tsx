@@ -26,7 +26,8 @@ import {Outlet} from "react-router";
                 <div className="flex md:order-2">
                     <Dropdown
                         arrowIcon={false}
-                        inline>
+                        inline
+                    >
                         <DropdownHeader>
                             <span className="block text-sm">Bob Jolly</span>
                             <span className="block truncate text-sm font-medium">name@flowbite.com</span>
