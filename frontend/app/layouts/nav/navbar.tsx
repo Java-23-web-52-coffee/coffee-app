@@ -18,7 +18,7 @@ import {Outlet} from "react-router";
     export default function Navigation() {
         return (
             <>
-            <Navbar fluid rounded className="bg-slate-100 border-b p-5">
+            <Navbar fluid rounded className="bg-white  border-b border-b-gray-200">
                 <NavbarBrand href="#">
                     <img src='/coffee.svg' className="mr-3 h-6 sm:h-9" alt="coffee logo" />
                     <span className="self-center whitespace-nowrap text-2xl font-semibold ">BrewMatch</span>
@@ -27,9 +27,6 @@ import {Outlet} from "react-router";
                     <Dropdown
                         arrowIcon={false}
                         inline
-                        label={
-                            <Avatar alt="User settings" img="https://flowbite.com/docs/images/people/profile-picture-5.jpg" rounded />
-                        }
                     >
                         <DropdownHeader>
                             <span className="block text-sm">Bob Jolly</span>
