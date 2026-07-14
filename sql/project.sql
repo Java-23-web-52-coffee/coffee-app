@@ -42,7 +42,7 @@ CREATE index ON favorite (profile_id, shop_id);
 
 CREATE TABLE interest (
     id uuid PRIMARY KEY,
-    interest_category varchar(127)
+    category varchar(127)
 );
 
 CREATE TABLE visit (
