@@ -30,7 +30,7 @@ export async function signupProfileController(request: Request, response: Respon
             passwordHash
         }
         await insertProfile(profile)
-        const activationLink: string = `${request.protocol}://${request.hostname}:8080${request.originalUrl}activation/${activationToken}`
+        const activationLink: string = `${request.protocol}://${request.hostname}:8080${request.originalUrl}/activation/${activationToken}`
         await sendActivationEmail(email, activationLink)
             .catch(mailError => {
                 console.error('Activation email failed to send:', mailError)
