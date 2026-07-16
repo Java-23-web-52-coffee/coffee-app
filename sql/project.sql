@@ -23,17 +23,14 @@ CREATE TABLE IF NOT EXISTS shop
 CREATE TABLE profile (
     id uuid PRIMARY KEY,
     activation_token char(32),
-    created_at timestamptz,
     email varchar(127) UNIQUE NOT NULL,
     name varchar(63) NOT NULL,
-    password_hash char(97) NOT NULL,
-    updated_at timestamptz
+    password_hash char(97) NOT NULL
 );
 
 CREATE TABLE favorite (
     profile_id uuid NOT NULL references profile(id),
     shop_id uuid NOT NULL references shop(id),
-    created_at timestamptz,
     primary key (profile_id, shop_id)
 );
 
