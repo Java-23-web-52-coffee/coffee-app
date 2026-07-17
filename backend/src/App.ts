@@ -9,6 +9,7 @@ import {indexRoute} from "./apis/index.route.ts";
 import {healthRoute} from "./apis/health/health.route.ts";
 import {signUpRoute} from "./apis/sign-up/sign-up.route.ts";
 import {signInRoute} from "./apis/sign-in/sign-in.route.ts";
+import {signOutRoute} from "./apis/sign-out/sign-out.route.ts";
 export class App {
     app: Application
     redisStore : RedisStore
@@ -43,6 +44,7 @@ export class App {
         this.app.use(healthRoute.basePath, healthRoute.router)
         this.app.use(signUpRoute.basePath, signUpRoute.router)
         this.app.use(signInRoute.basePath, signInRoute.router)
+        this.app.use(signOutRoute.basePath, signOutRoute.router)
     }
 
     // starts the server and tells the terminal to post a message that the server is running and on what port
