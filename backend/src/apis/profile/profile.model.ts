@@ -54,3 +54,15 @@ export async function updateProfile (profile: PrivateProfile): Promise<string> {
     await sql`UPDATE profile SET activation_token = ${activationToken}, email = ${email}, password_hash = ${passwordHash}, name = ${name} WHERE id = ${id}`
     return 'Profile Successfully Updated'
 }
+/**
+ * Selects the privateProfile from the profile table by email
+ * @param email  the profile's email to search for in the profile table
+ * @returns Profile or null if no profile was found
+ */
+export async function selectPrivateProfileByProfileEmail (email: string) : Promise<PrivateProfile | null> {
+    const rowList = await sql`SELECT id, activation_token, email, password_hash, name FROM profile WHERE email = ${email}`
+
+    const result = PrivateProfileSchema.array().max(1).parse(rowList)
+
+    return result[0] ?? null
+}
