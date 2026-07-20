@@ -46,7 +46,7 @@ CREATE TABLE visit (
   id uuid PRIMARY KEY,
   shop_id uuid NOT NULL references shop(id),
   profile_id uuid NOT NULL references profile(id),
-  created_at timestamptz
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE index ON visit (shop_id, profile_id);

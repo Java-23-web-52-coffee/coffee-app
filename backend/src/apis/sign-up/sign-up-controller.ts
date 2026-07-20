@@ -37,7 +37,7 @@ export async function signupProfileController(request: Request, response: Respon
             })
         response
             .status(201)
-            .location(`/apis/profile/${id}`)
+            .location(`/apis/profiles/${id}`)
             .json({id, name})
     } catch (error: any) {
         if (error?.code === UNIQUE_VIOLATION) {
