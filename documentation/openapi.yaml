@@ -286,14 +286,14 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
     get:
-      summary: List the signed-in profile's visits
+      summary: List the signed-in profile's visit
       operationId: listMyVisits
       tags: [Visit]
       security:
         - sessionCookie: []
       responses:
         '200':
-          description: The profile's visits.
+          description: The profile's visit.
           content:
             application/json:
               schema:

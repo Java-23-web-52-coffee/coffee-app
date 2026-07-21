@@ -66,3 +66,41 @@ export async function selectPrivateProfileByProfileEmail (email: string) : Promi
 
     return result[0] ?? null
 }
+
+// /**
+//  * Inserts a visit into the visit table
+//  * @param visit the visit to insert
+//  * @returns {Promise<string>} 'Visit Successfully Created'
+//  */
+// export async function insertVisit (visit: Visit): Promise<string> {
+//     VisitSchema.parse(visit)
+//     const { id, profileId, shopId, createdAt } = visit
+//     await sql`INSERT INTO visit(id, profile_id, shop_id, created_at)
+//               VALUES (${id}, ${profileId}, ${shopId}, ${createdAt})`
+//     return 'Visit Successfully Created'
+// }
+//
+// /**
+//  * Selects a visit from the visit table by id
+//  * @param id the visit's id to search for in the visit table
+//  * @returns Visit or null if no visit was found
+//  */
+// export async function selectVisitById (id: string): Promise<Visit | null> {
+//     const rowList = await sql`SELECT id, profile_id, shop_id, created_at
+//                               FROM visit
+//                               WHERE id = ${id}`
+//     const result = VisitSchema.array().max(1).parse(rowList)
+//     return result[0] ?? null
+// }
+//
+// /**
+//  * Selects all visit belonging to a profile
+//  * @param profileId the profile's id to search for in the visit table
+//  * @returns Visit[]
+//  */
+// export async function selectVisitsByProfileId (profileId: string): Promise<Visit[]> {
+//     const rowList = await sql`SELECT id, profile_id, shop_id, created_at
+//                               FROM visit
+//                               WHERE profile_id = ${profileId}`
+//     return VisitSchema.array().parse(rowList)
+// }
