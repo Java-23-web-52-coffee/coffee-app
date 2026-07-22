@@ -11,6 +11,7 @@ import {signUpRoute} from "./apis/sign-up/sign-up.route.ts";
 import {signInRoute} from "./apis/sign-in/sign-in.route.ts";
 import {signOutRoute} from "./apis/sign-out/sign-out.route.ts";
 import {shopRoute} from "./apis/shop/shop.route.ts";
+import {insertShop} from "./apis/shop/shop.controller.ts";
 
 export class App {
     app: Application
