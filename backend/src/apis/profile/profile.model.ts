@@ -66,3 +66,4 @@ export async function selectPrivateProfileByProfileEmail (email: string) : Promi
 
     return result[0] ?? null
 }
+

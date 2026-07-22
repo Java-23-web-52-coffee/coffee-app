@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS shop
 (
     id        uuid PRIMARY KEY,
     address   varchar(255),
-    hours     json,
+    hours     json NOT NULL DEFAULT '{}',
     lat       numeric(9, 6),
     lng       numeric(9, 6),
     name      varchar(63) NOT NULL,
