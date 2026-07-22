@@ -49,4 +49,7 @@ export async function insertShop(shop: Shop): Promise<Shop> {
 export async function selectShopById(id: string): Promise<Shop | null> {
 const rowList = await sql`SELECT id, address, hours, lat, lng, name, phone, image_url FROM shop WHERE id = ${id}`
 
+    const result = ShopSchema.array().max(1).parse(rowList)
+    return result[0] ?? null
+
 }
