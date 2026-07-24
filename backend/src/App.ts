@@ -50,7 +50,6 @@ export class App {
         this.app.use(signOutRoute.basePath, signOutRoute.router)
         this.app.use(shopRoute.basePath, shopRoute.router)
         this.app.use(visitRoute.basePath, visitRoute.router)
-        this.app.use(visitRoute.basePath, visitRoute.router)
     }
 
     // starts the server and tells the terminal to post a message that the server is running and on what port
