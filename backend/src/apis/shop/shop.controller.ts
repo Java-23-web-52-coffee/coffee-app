@@ -75,7 +75,7 @@ export async function getShopByIdController(request: Request, response: Response
             sendError(request, response, 404, `No shop exists with an id equal to ${id}`)
             return
         }
-
+            response.json(shop)
         //catch any errors
     } catch (error: any) {
         console.error(error)
