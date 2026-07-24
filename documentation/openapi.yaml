@@ -1,0 +1,861 @@
+openapi: 3.0.3
+info:
+  title: BrewMatch API
+  description: |
+    Personalized coffee shop discovery. Users build a preference profile
+    (weighted interests), privately log visits, and rate those visits against
+    their interests. `GET /apis/profiles/me/matches` ranks shops by nearest
+    neighbor to the profile's preference vector — see
+    `documentation/matching-algorithm.md` for the algorithm.
+
+    Response contract:
+    - **Real HTTP status codes** (`201`, `200`, `204`, `400`, `401`, `403`,
+      `404`, `409`, `500`) — never `200` with an error in the body.
+    - **Resource-direct bodies** — no `{ status, message, data }` wrapper.
+    - **A structured `ErrorResponse`** for every failure.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local docker (host port 8080 -> container 4200)
+  - url: http://localhost:4200
+    description: Local dev server (npm run dev)
+
+tags:
+  - name: Health
+  - name: Auth
+  - name: Profile
+  - name: Shop
+  - name: Interest
+  - name: Visit
+  - name: Favorite
+  - name: Preference
+  - name: Rating
+  - name: Match
+
+paths:
+  ###########################################################################
+  # Health
+  ###########################################################################
+  /apis/health:
+    get:
+      summary: Health check
+      description: Verifies PostgreSQL and Redis connectivity. Used by the Docker healthcheck.
+      operationId: healthCheck
+      tags: [Health]
+      responses:
+        '200':
+          description: All services are up.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+        '503':
+          description: One or more services are down.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Health' }
+
+  ###########################################################################
+  # Auth
+  ###########################################################################
+  /apis/sign-up:
+    post:
+      summary: Sign up
+      description: Creates a profile and fires a best-effort activation email. Does not establish a session — the profile must be activated, then signed in separately.
+      operationId: signUp
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignUpRequest' }
+      responses:
+        '201':
+          description: Profile created.
+          headers:
+            Location:
+              description: Canonical URL of the new profile resource (not independently fetchable — only the owner can read it, via GET /apis/profiles/me after activation and sign-in).
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProfile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409':
+          description: Email or name already in use.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /apis/sign-in:
+    post:
+      summary: Sign in
+      description: |
+        Establishes the session (identity in the session cookie) and returns the
+        CSRF token in the `Authorization` response header. That token must be
+        echoed back on guarded requests.
+      operationId: signIn
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SignInRequest' }
+      responses:
+        '200':
+          description: Signed in.
+          headers:
+            Authorization:
+              description: CSRF token to echo back on guarded requests.
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProfile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Email or password is incorrect.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /apis/sign-out:
+    post:
+      summary: Sign out
+      description: Destroys the session. Idempotent — returns 204 even when not signed in.
+      operationId: signOut
+      tags: [Auth]
+      responses:
+        '204': { description: Session destroyed. }
+
+  /apis/sign-up/activation/{activation}:
+    get:
+      summary: Activate an account
+      operationId: activate
+      tags: [Auth]
+      parameters:
+        - name: activation
+          in: path
+          required: true
+          schema: { type: string, minLength: 32, maxLength: 32 }
+      responses:
+        '200':
+          description: Account activated.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProfile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  ###########################################################################
+  # Profile
+  ###########################################################################
+  /apis/profiles/me:
+    get:
+      summary: Get the signed-in profile
+      operationId: getMyProfile
+      tags: [Profile]
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The signed-in profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProfile' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      summary: Update the signed-in profile
+      description: Only `name` is mutable through this endpoint.
+      operationId: updateMyProfile
+      tags: [Profile]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ProfileUpdateRequest' }
+      responses:
+        '200':
+          description: Updated profile.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicProfile' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  ###########################################################################
+  # Shop — read-only reference data (seeded, not managed through the API)
+  ###########################################################################
+  /apis/shops:
+    get:
+      summary: List shops
+      operationId: listShops
+      tags: [Shop]
+      responses:
+        '200':
+          description: All shops.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Shop' }
+
+  /apis/shops/{id}:
+    get:
+      summary: Get a shop by id
+      operationId: getShopById
+      tags: [Shop]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: The shop.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Shop' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  ###########################################################################
+  # Interest — read-only reference data (the taxonomy preferences/ratings use)
+  ###########################################################################
+  /apis/interests:
+    get:
+      summary: List interest
+      operationId: listInterests
+      tags: [Interest]
+      responses:
+        '200':
+          description: All interest.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Interest' }
+
+  /apis/interests/{id}:
+    get:
+      summary: Get an interest by id
+      operationId: getInterestById
+      tags: [Interest]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: The interest.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Interest' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  ###########################################################################
+  # Visit — first-class entity (has its own id) scoped to the signed-in profile
+  ###########################################################################
+  /apis/profiles/me/visits:
+    post:
+      summary: Log a visit
+      description: profileId is taken from the session, never the request body.
+      operationId: createVisit
+      tags: [Visit]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VisitRequest' }
+      responses:
+        '201':
+          description: Visit logged.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Visit' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    get:
+      summary: List the signed-in profile's visits
+      operationId: listMyVisits
+      tags: [Visit]
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The profile's visits.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Visit' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /apis/visits/{id}:
+    get:
+      summary: Get a visit by id
+      description: Visits are private logs — only the owning profile may read one.
+      operationId: getVisitById
+      tags: [Visit]
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: The visit.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Visit' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  ###########################################################################
+  # Favorite — association (profileId, shopId); no surrogate id
+  ###########################################################################
+  /apis/profiles/me/favorites:
+    post:
+      summary: Favorite a shop
+      operationId: createFavorite
+      tags: [Favorite]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FavoriteRequest' }
+      responses:
+        '201':
+          description: Favorite created.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Favorite' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      summary: List the signed-in profile's favorites
+      operationId: listMyFavorites
+      tags: [Favorite]
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The profile's favorites.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Favorite' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /apis/profiles/me/favorites/{shopId}:
+    delete:
+      summary: Unfavorite a shop
+      description: Idempotent — 204 whether or not the favorite existed.
+      operationId: deleteFavorite
+      tags: [Favorite]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - name: shopId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '204': { description: Removed (or already absent). }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  ###########################################################################
+  # Preference — association (profileId, interestId, importance); no surrogate id
+  ###########################################################################
+  /apis/profiles/me/preferences:
+    post:
+      summary: Set a preference
+      operationId: createPreference
+      tags: [Preference]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferenceRequest' }
+      responses:
+        '201':
+          description: Preference created.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preference' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      summary: List the signed-in profile's preferences
+      operationId: listMyPreferences
+      tags: [Preference]
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: The profile's preferences.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Preference' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /apis/profiles/me/preferences/{interestId}:
+    put:
+      summary: Update a preference's importance
+      operationId: updatePreference
+      tags: [Preference]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - name: interestId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferenceUpdateRequest' }
+      responses:
+        '200':
+          description: Updated preference.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Preference' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Remove a preference
+      description: Idempotent — 204 whether or not the preference existed.
+      operationId: deletePreference
+      tags: [Preference]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - name: interestId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '204': { description: Removed (or already absent). }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  ###########################################################################
+  # Rating — association (visitId, interestId, value); scoped under its visit
+  ###########################################################################
+  /apis/visits/{visitId}/ratings:
+    post:
+      summary: Rate an interest for a visit
+      operationId: createRating
+      tags: [Rating]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - name: visitId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RatingRequest' }
+      responses:
+        '201':
+          description: Rating created.
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rating' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    get:
+      summary: List a visit's ratings
+      operationId: listRatings
+      tags: [Rating]
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: visitId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: The visit's ratings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Rating' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /apis/visits/{visitId}/ratings/{interestId}:
+    put:
+      summary: Update a rating's value
+      operationId: updateRating
+      tags: [Rating]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - name: visitId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+        - name: interestId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RatingUpdateRequest' }
+      responses:
+        '200':
+          description: Updated rating.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Rating' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      summary: Remove a rating
+      description: Idempotent — 204 whether or not the rating existed.
+      operationId: deleteRating
+      tags: [Rating]
+      security:
+        - sessionCookie: []
+          csrfToken: []
+      parameters:
+        - name: visitId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+        - name: interestId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '204': { description: Removed (or already absent). }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  ###########################################################################
+  # Match — computed, read-only; no table of its own (derived from
+  # preference + rating, see documentation/matching-algorithm.md)
+  ###########################################################################
+  /apis/profiles/me/matches:
+    get:
+      summary: List shops ranked by nearest match to the signed-in profile's preferences
+      operationId: listMyMatches
+      tags: [Match]
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Max number of matches to return.
+          schema: { type: integer, minimum: 1, maximum: 25, default: 5 }
+      responses:
+        '200':
+          description: Shops ranked by ascending matchScore (closer = better match). Empty array if the profile has no preferences yet or no shop has overlapping ratings.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ShopMatch' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+components:
+  ###########################################################################
+  # Security — a session cookie for identity + a CSRF token for state changes.
+  ###########################################################################
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Session cookie set at sign-in; carries identity.
+    csrfToken:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: |
+        CSRF token issued in the sign-in response `Authorization` header. Must be
+        echoed back on every state-changing (POST/PUT/DELETE) guarded route and
+        must match the token stored in the session.
+
+  ###########################################################################
+  # Reusable responses — reference these with $ref; never write inline
+  # one-off error responses.
+  ###########################################################################
+  responses:
+    BadRequest:
+      description: Validation failed.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Unauthorized:
+      description: Not signed in.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Forbidden:
+      description: Signed in, but not allowed (bad CSRF token or not the owner).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+    Conflict:
+      description: Conflicts with existing state (e.g. duplicate).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  ###########################################################################
+  # Schemas
+  ###########################################################################
+  schemas:
+    Uuid:
+      type: string
+      format: uuid
+      description: A UUID v7 (matches the `z.uuidv7()` validation used throughout).
+      example: 0190c0de-1234-7abc-8def-1234567890ab
+
+    Health:
+      type: object
+      required: [status, timestamp, services]
+      properties:
+        status: { type: string, enum: [healthy, unhealthy] }
+        timestamp: { type: string, format: date-time }
+        services:
+          type: object
+          required: [database, redis]
+          properties:
+            database: { type: string, enum: [up, down, unknown] }
+            redis: { type: string, enum: [up, down, not_configured, unknown] }
+
+    ErrorResponse:
+      type: object
+      required: [timestamp, status, error, message, path]
+      properties:
+        timestamp: { type: string, format: date-time }
+        status: { type: integer, description: HTTP status code }
+        error: { type: string, description: HTTP status text, e.g. "Not Found" }
+        message: { type: string, description: Human-readable detail }
+        path: { type: string, description: Host-relative request URL }
+        details:
+          type: object
+          description: Optional extra detail, generally included with validation errors.
+
+    PublicProfile:
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string, minLength: 1, maxLength: 63 }
+
+    SignUpRequest:
+      type: object
+      required: [name, email, password, passwordConfirm]
+      description: The server owns id, passwordHash, and activationToken.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 63 }
+        email: { type: string, format: email, maxLength: 127 }
+        password: { type: string, minLength: 8, maxLength: 32 }
+        passwordConfirm: { type: string, minLength: 8, maxLength: 32 }
+
+    SignInRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 127 }
+        password: { type: string, minLength: 8, maxLength: 32 }
+
+    ProfileUpdateRequest:
+      type: object
+      description: Only name is currently mutable.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 63 }
+
+    # ------------------------------------------------------------------
+    # Shop / Interest — read-only reference data
+    # ------------------------------------------------------------------
+    Shop:
+      type: object
+      required: [id, name]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        name: { type: string, minLength: 1, maxLength: 63 }
+        address: { type: string, nullable: true, maxLength: 255 }
+        hours:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Opening hours, shape TBD by frontend needs.
+        lat: { type: number, format: double, nullable: true, minimum: -90, maximum: 90 }
+        lng: { type: number, format: double, nullable: true, minimum: -180, maximum: 180 }
+        phone: { type: string, nullable: true, maxLength: 31 }
+        imageUrl: { type: string, format: uri, nullable: true, maxLength: 255 }
+
+    Interest:
+      type: object
+      required: [id, category]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        category: { type: string, minLength: 1, maxLength: 127 }
+
+    # ------------------------------------------------------------------
+    # Visit — first-class entity, scoped to a profile
+    # ------------------------------------------------------------------
+    Visit:
+      type: object
+      required: [id, profileId, shopId, createdAt]
+      properties:
+        id: { $ref: '#/components/schemas/Uuid' }
+        profileId: { $ref: '#/components/schemas/Uuid' }
+        shopId: { $ref: '#/components/schemas/Uuid' }
+        createdAt: { type: string, format: date-time }
+
+    VisitRequest:
+      type: object
+      required: [shopId]
+      description: Server owns id, profileId (from session), and createdAt.
+      properties:
+        shopId: { $ref: '#/components/schemas/Uuid' }
+
+    # ------------------------------------------------------------------
+    # Favorite — association; no surrogate id
+    # ------------------------------------------------------------------
+    Favorite:
+      type: object
+      required: [profileId, shopId]
+      properties:
+        profileId: { $ref: '#/components/schemas/Uuid' }
+        shopId: { $ref: '#/components/schemas/Uuid' }
+
+    FavoriteRequest:
+      type: object
+      required: [shopId]
+      description: Server owns profileId (from session).
+      properties:
+        shopId: { $ref: '#/components/schemas/Uuid' }
+
+    # ------------------------------------------------------------------
+    # Preference — association; importance is a 1-5 weight
+    # ------------------------------------------------------------------
+    Preference:
+      type: object
+      required: [profileId, interestId, importance]
+      properties:
+        profileId: { $ref: '#/components/schemas/Uuid' }
+        interestId: { $ref: '#/components/schemas/Uuid' }
+        importance: { type: number, minimum: 1, maximum: 5 }
+
+    PreferenceRequest:
+      type: object
+      required: [interestId, importance]
+      description: Server owns profileId (from session).
+      properties:
+        interestId: { $ref: '#/components/schemas/Uuid' }
+        importance: { type: number, minimum: 1, maximum: 5 }
+
+    PreferenceUpdateRequest:
+      type: object
+      required: [importance]
+      properties:
+        importance: { type: number, minimum: 1, maximum: 5 }
+
+    # ------------------------------------------------------------------
+    # Rating — association scoped under a visit; value is a 1-5 score
+    # ------------------------------------------------------------------
+    Rating:
+      type: object
+      required: [visitId, interestId, value]
+      properties:
+        visitId: { $ref: '#/components/schemas/Uuid' }
+        interestId: { $ref: '#/components/schemas/Uuid' }
+        value: { type: number, minimum: 1, maximum: 5 }
+
+    RatingRequest:
+      type: object
+      required: [interestId, value]
+      description: Server owns visitId (from the path).
+      properties:
+        interestId: { $ref: '#/components/schemas/Uuid' }
+        value: { type: number, minimum: 1, maximum: 5 }
+
+    RatingUpdateRequest:
+      type: object
+      required: [value]
+      properties:
+        value: { type: number, minimum: 1, maximum: 5 }
+
+    # ------------------------------------------------------------------
+    # ShopMatch — computed; Shop + a distance score. See
+    # documentation/matching-algorithm.md for how matchScore is derived.
+    # ------------------------------------------------------------------
+    ShopMatch:
+      allOf:
+        - $ref: '#/components/schemas/Shop'
+        - type: object
+          required: [matchScore]
+          properties:
+            matchScore:
+              type: number
+              description: Weighted Euclidean distance to the profile's preference vector. Lower is a closer match.
