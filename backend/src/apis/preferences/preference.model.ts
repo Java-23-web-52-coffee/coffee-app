@@ -18,7 +18,7 @@ export type Preference = z.infer<typeof PreferenceModel>
 // @returns the canonical, database generated preference.row
 
 export async function setPreference (preference: Preference): Promise<Preference> {
-    const [row] = await sql`
+    const [row] = await sql
         INSERT INTO preference (profile_id, interest_id, importance)
         VALUES (${preference.profileId}, ${preference.interestId}, ${preference.importance})
     RETURNING profile_id, interest_id, importance
@@ -26,4 +26,6 @@ export async function setPreference (preference: Preference): Promise<Preference
     return PreferenceModel.parse(row)
 }
 
-
+export async function selectAllInterest (): Promise<Preference[]> {
+    const rowList = await sql\`SELECT id, category FROM interest\`
+    return InterestModel.array().parse(rowList)
