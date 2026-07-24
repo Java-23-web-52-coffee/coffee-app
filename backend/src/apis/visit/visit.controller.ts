@@ -1,8 +1,7 @@
 import type {Request, Response} from 'express';
-import {insertVisit, selectAllVisits} from "./visit.model.ts";
+import {insertVisit, selectAllVisits, selectVisitById} from "./visit.model.ts";
 import {sendError, sendServerError, sendZodError} from "../../utils/response.utils.ts";
 import {PostVisitSchema, type Visit} from "./visit.schema.ts";
-import {insertShop, type Shop, ShopSchema} from "../shop/shop.model.ts";
 import {v7 as uuidv7} from "uuid";
 
 
@@ -64,4 +63,29 @@ try{
     console.error(error)
     sendServerError(request, response)
 }
+}
+
+
+export async function getVisitByIdController(request: Request, response: Response): Promise<void> {
+    try{
+        const { id } = request.params
+
+        if (typeof id !== "string") {
+            sendError(request, response, 400, "Please provide a valid visit id")
+            return
+        }
+        const visit = await selectVisitById(id)
+
+        if (visit === null) {
+            sendError(request, response, 404, "Visit not found")
+            return
+    }
+
+        response.status(200).json(visit)
+
+    } catch (error: any) {
+        console.error(error)
+        sendServerError(request, response)
+    }
+
 }
