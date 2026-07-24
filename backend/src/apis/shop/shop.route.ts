@@ -2,7 +2,7 @@
 
 // define the base path for the route
 import {Router} from "express";
-import {getAllShopsController, postShopController} from "./shop.controller.ts";
+import {getAllShopsController, getShopByIdController, postShopController} from "./shop.controller.ts";
 
 const basePath = '/apis/shops' as const
 
@@ -14,6 +14,8 @@ router.route('/').get(getAllShopsController)
 
 // add a coffee shop
 router.route('/').post(postShopController)
+
+router.route('/:id').get(getShopByIdController)
 
 // export the router with the basePath and router object
 export const shopRoute = { basePath, router }
