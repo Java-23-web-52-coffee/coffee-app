@@ -226,12 +226,12 @@ paths:
   ###########################################################################
   /apis/interests:
     get:
-      summary: List interests
+      summary: List interest
       operationId: listInterests
       tags: [Interest]
       responses:
         '200':
-          description: All interests.
+          description: All interest.
           content:
             application/json:
               schema:
