@@ -11,7 +11,7 @@ import {signUpRoute} from "./apis/sign-up/sign-up.route.ts";
 import {signInRoute} from "./apis/sign-in/sign-in.route.ts";
 import {signOutRoute} from "./apis/sign-out/sign-out.route.ts";
 import {shopRoute} from "./apis/shop/shop.route.ts";
-import {insertShop} from "./apis/shop/shop.controller.ts";
+import {interestRoute} from "./apis/interest/interest.route.ts";
 
 export class App {
     app: Application
@@ -49,6 +49,7 @@ export class App {
         this.app.use(signInRoute.basePath, signInRoute.router)
         this.app.use(signOutRoute.basePath, signOutRoute.router)
         this.app.use(shopRoute.basePath, shopRoute.router)
+        this.app.use(interestRoute.basePath, interestRoute.router)
     }
 
     // starts the server and tells the terminal to post a message that the server is running and on what port
