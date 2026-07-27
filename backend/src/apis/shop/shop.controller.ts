@@ -1,9 +1,9 @@
 import type {Request, Response} from 'express';
-import {insertShop, selectAllShops} from "./shop.model.ts";
+import {selectShopById, insertShop, selectAllShops} from "./shop.model.ts";
 import {sendError, sendServerError, sendZodError} from "../../utils/response.utils.ts";
-import {sql} from "../../utils/database.utils.ts";
 import {type Shop, ShopSchema} from "./shop.model.ts";
 import {v7 as uuidv7} from 'uuid';
+import {z} from 'zod/v4'
 
 
 
@@ -57,5 +57,29 @@ const {address, hours, lat, lng, name, phone, imageUrl} = validationResult.data
     } catch (error: any) {
         console.error(error)
         sendServerError(request, response)
+    }
+}
+
+export async function getShopByIdController(request: Request, response: Response):Promise<void> {
+    //run select all shops function
+    try {
+        const validationResult = z.uuidv7('Please provide a valid uuid for id').safeParse( request.params.id)
+        if (!validationResult.success) {
+            sendZodError(request, response, validationResult.error)
+            return
+        }
+        const  id = validationResult.data
+
+        const shop: Shop | null = await selectShopById(id)
+        if (shop === null) {
+            sendError(request, response, 404, `No shop exists with an id equal to ${id}`)
+            return
+        }
+            response.json(shop)
+        //catch any errors
+    } catch (error: any) {
+        console.error(error)
+        sendServerError(request, response)
+
     }
 }

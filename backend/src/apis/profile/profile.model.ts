@@ -21,6 +21,9 @@ export const PrivateProfileSchema = z.object({
 
 export type PrivateProfile = z.infer<typeof PrivateProfileSchema>
 
+export const PublicProfileSchema = PrivateProfileSchema.omit({passwordHash:true,email:true, activationToken:true})
+export type PublicProfile = z.infer<typeof PublicProfileSchema>
+
 export async function insertProfile(profile: PrivateProfile): Promise<string> {
     PrivateProfileSchema.parse(profile)
     const {activationToken, email, passwordHash, name, id} = profile

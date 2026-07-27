@@ -1,5 +1,7 @@
 import {sql} from "../../utils/database.utils.ts";
 import {z} from 'zod/v4'
+
+
 export const ShopSchema = z.object({
     id: z.uuidv7('Please provide a valid uuid for id').nullable(),
     address: z.string('Please provide a valid address'),
@@ -44,3 +46,10 @@ export async function insertShop(shop: Shop): Promise<Shop> {
     return ShopSchema.parse(row)
 }
 
+export async function selectShopById(id: string): Promise<Shop | null> {
+const rowList = await sql`SELECT id, address, hours, lat, lng, name, phone, image_url FROM shop WHERE id = ${id}`
+
+    const result = ShopSchema.array().max(1).parse(rowList)
+    return result[0] ?? null
+
+}
