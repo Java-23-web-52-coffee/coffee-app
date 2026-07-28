@@ -2,13 +2,35 @@ import {Link} from "react-router";
 import {Mail, Lock, User, Eye, EyeOff} from "lucide-react";
 import {useState} from "react";
 import type {Route} from "./+types/sign-up";
-
+import
 
 export function meta({}: Route.MetaArgs) {
     return [
         {title: "Sign Up"},
         {names: "description", content: "Sign up for an account."}
     ];
+}
+
+const resolver = zodResolver(SignUpSchema)
+
+export async function action( {request} :Route.ActionArgs): Promise<Route.ActionReturn> {
+    const {errors, data, receivedValues:defaultValues} = await getValidatedFormData<SignUp>(request, resolver)
+    if(errors) {
+        return{ errors, defaultValues}
+    }
+
+    try {
+        const response = await postSignUp(data)
+
+        if (response.status !== 200) {
+            return {success: false, status: response}
+        }
+
+        return {success: true, status: response}
+    } catch (error) {
+        console.error('unexpected error during sig-up')
+        return {success: false, status: {status: 500, data: null, message: 'Something went wrong. Try again'}}
+    }
 }
 
 export default function SignUp() {
