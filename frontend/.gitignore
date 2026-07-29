@@ -5,4 +5,4 @@
 # React Router
 /.react-router/
 /build/
-/.env.development
+.env.development

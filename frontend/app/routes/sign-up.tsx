@@ -2,7 +2,7 @@ import {Link} from "react-router";
 import {Mail, Lock, User, Eye, EyeOff} from "lucide-react";
 import {useState} from "react";
 import type {Route} from "./+types/sign-up";
-import
+
 
 export function meta({}: Route.MetaArgs) {
     return [
