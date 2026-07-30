@@ -43,10 +43,10 @@ import {Outlet} from "react-router";
                 <NavbarCollapse>
 
 
-                     <NavbarLink href="#">
+                     <NavbarLink href="/search-page">
                          <div className="flex items-center gap-1  lg:flex">
                              <img src={'/search.svg'}  className={"h-5"}/>
-                             <span className={" "}>Explore Cafes</span>
+                             <span className={" "}>Search Coffee Shops</span>
                          </div>
                          </NavbarLink>
 
@@ -68,6 +68,13 @@ import {Outlet} from "react-router";
                         <div className="flex items-center gap-1  lg:flex">
                             <img src={'/user.svg'}  className={"h-5"}/>
                             <span>My Profile</span>
+                        </div>
+                    </NavbarLink>
+
+                    <NavbarLink href="/sign-up">
+                        <div className="flex items-center gap-1  lg:flex">
+                            <img src={'/user.svg'}  className={"h-5"}/>
+                            <span>Sign Up</span>
                         </div>
                     </NavbarLink>
                 </NavbarCollapse>

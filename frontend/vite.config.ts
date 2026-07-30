@@ -8,4 +8,7 @@ export default defineConfig({
   resolve: {
     tsconfigPaths: true,
   },
+  ssr: {
+    noExternal: ["remix-hook-form"],
+  },
 });

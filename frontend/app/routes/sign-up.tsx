@@ -78,7 +78,7 @@ export default function SignUp() {
                 </div>
 
                 {/*name field*/}
-                <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md border border-gray-200 space-y-4">
+                <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md border border-gray-200 space-y-4 my-4">
                     <label
                         htmlFor="name"
                         className="block text-sm font-medium text-gray-900 mb-2">
@@ -95,14 +95,16 @@ export default function SignUp() {
                 </div>
 
                 {/*password field*/}
-                <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md border border-gray-200 space-y-4 relative">
-                    <div className="relative">
-                        <label
-                            htmlFor="name"
-                            className="block text-sm font-medium text-gray-900 mb-2">
+                <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md border border-gray-200 space-y-4 mb-4">
+                    <label
+                        htmlFor="name"
+                        className="block text-sm font-medium text-gray-900 mb-2">
+                        <Lock className="h-5 w-5 text-gray-400 mr-4 inline " />
 
-                            Password
-                        </label>
+                        Password
+                    </label>
+                    <div className="relative">
+
                 <input className="w-full rounded-md border border-gray-400 px-3 py-2"
                     type={showPassword ? "text" : "password"}
                     id="password"
@@ -126,14 +128,15 @@ export default function SignUp() {
 
                 {/*confirm password field*/}
                 <div className="max-w-md mx-auto p-6 bg-white rounded-xl shadow-md border border-gray-200 space-y-4">
-                    <div className="relative">
-                        <label
-                            htmlFor="passwordConfirm"
-                            className="block text-sm font-medium text-gray-900 mb-2">
-                            <Lock className="h-5 w-5 text-gray-400 mr-4 inline " />
+                    <label
+                        htmlFor="passwordConfirm"
+                        className="block text-sm font-medium text-gray-900 mb-2">
+                        <Lock className="h-5 w-5 text-gray-400 mr-4 inline " />
 
-                            Confirm Password
-                        </label>
+                        Confirm Password
+                    </label>
+                    <div className="relative">
+
                 <input className="w-full rounded-md border border-gray-400 px-3 py-2"
                     type={showConfirmPassword ? "text" : "password"}
                     id="passwordConfirm"
