@@ -348,7 +348,7 @@ paths:
             Location: { schema: { type: string } }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Favorite' }
+              schema: { $ref: '#/components/schemas/Shop' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -366,7 +366,7 @@ paths:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Favorite' }
+                items: { $ref: '#/components/schemas/Shop' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
   /apis/profiles/me/favorites/{shopId}:
@@ -696,7 +696,7 @@ components:
       properties:
         timestamp: { type: string, format: date-time }
         status: { type: integer, description: HTTP status code }
-        error: { type: string, description: HTTP status text, e.g. "Not Found" }
+        error: { type: string, description: "HTTP status text, e.g. \"Not Found\"" }
         message: { type: string, description: Human-readable detail }
         path: { type: string, description: Host-relative request URL }
         details:
@@ -781,14 +781,7 @@ components:
 
     # ------------------------------------------------------------------
     # Favorite — association; no surrogate id
-    # ------------------------------------------------------------------
-    Favorite:
-      type: object
-      required: [profileId, shopId]
-      properties:
-        profileId: { $ref: '#/components/schemas/Uuid' }
-        shopId: { $ref: '#/components/schemas/Uuid' }
-
+    # -----------------------------------------------------------------
     FavoriteRequest:
       type: object
       required: [shopId]
