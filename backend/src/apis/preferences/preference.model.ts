@@ -7,7 +7,7 @@ import { sql } from '../../utils/database.utils.ts'
 
 export const PreferenceModel = z.object({
     profileId: z.uuidv7('Please provide a valid uuid for profileId'),
-    interestId: z.uuidv7('Please provide a valid uuid for interestId'),
+    interestId: z.uuidv7('Please provide a valid uuid for interestId'),favorite
     importance: z.number('Please provide a valid importance').min(1).max(5)
 })
 

@@ -35,7 +35,7 @@ export async function action( {request} :Route.ActionArgs): Promise<FormActionRe
 
         return {success: true, status: response}
     } catch (error) {
-        console.error('unexpected error during sig-up')
+        console.error('unexpected error during sign-up')
         return {success: false, status: {status: 500, data: null, message: 'Something went wrong. Try again'}}
     }
 }

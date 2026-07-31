@@ -50,7 +50,7 @@ export async function signInController (request: Request, response: Response) : 
         // establish the session; only public fields go into the JWT payload
         const { id, name} = profile
         const signature: string = uuidv7()
-        const authorization: string = generateJwt({ id, name}, signature)
+        const authorization: string = generateJwt({ id, email, name}, signature)
 
         // store only the public profile in the session — never the hash/email/activationToken
         request.session.profile = { id, name }
