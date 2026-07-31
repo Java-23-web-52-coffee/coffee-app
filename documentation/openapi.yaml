@@ -713,7 +713,7 @@ components:
     SignUpRequest:
       type: object
       required: [name, email, password, passwordConfirm]
-      description: The server owns id, passwordHash, and activationToken.
+      description: The server owns id, passwordHash, and activationToken. password and passwordConfirm must match (SignUpProfileSchema.refine); a mismatch is a 400 validation error, not a distinct field-level constraint.
       properties:
         name: { type: string, minLength: 1, maxLength: 63 }
         email: { type: string, format: email, maxLength: 127 }
@@ -738,27 +738,36 @@ components:
     # ------------------------------------------------------------------
     Shop:
       type: object
-      required: [id, name]
+      required: [id, name, address, hours, lat, lng, phone, imageUrl]
+      description: All fields are required by ShopSchema — none are optional or nullable except id (nullable only pre-insert, before the server assigns a uuidv7).
       properties:
         id: { $ref: '#/components/schemas/Uuid' }
         name: { type: string, minLength: 1, maxLength: 63 }
-        address: { type: string, nullable: true, maxLength: 255 }
+        address: { type: string }
         hours:
           type: object
-          nullable: true
-          additionalProperties: true
-          description: Opening hours, shape TBD by frontend needs.
-        lat: { type: number, format: double, nullable: true, minimum: -90, maximum: 90 }
-        lng: { type: number, format: double, nullable: true, minimum: -180, maximum: 180 }
-        phone: { type: string, nullable: true, maxLength: 31 }
-        imageUrl: { type: string, format: uri, nullable: true, maxLength: 255 }
+          description: Opening hours by day. All keys optional; each value has no minimum length.
+          additionalProperties: false
+          properties:
+            monday: { type: string, maxLength: 32 }
+            tuesday: { type: string, maxLength: 32 }
+            wednesday: { type: string, maxLength: 32 }
+            thursday: { type: string, maxLength: 32 }
+            friday: { type: string, maxLength: 32 }
+            saturday: { type: string, maxLength: 32 }
+            sunday: { type: string, maxLength: 32 }
+        lat: { type: number, format: double, minimum: -90, maximum: 90 }
+        lng: { type: number, format: double, minimum: -180, maximum: 180 }
+        phone: { type: string, minLength: 10, maxLength: 31 }
+        imageUrl: { type: string, format: uri, maxLength: 255 }
 
     Interest:
       type: object
       required: [id, category]
+      description: InterestModel enforces no length constraints on category beyond being a string.
       properties:
         id: { $ref: '#/components/schemas/Uuid' }
-        category: { type: string, minLength: 1, maxLength: 127 }
+        category: { type: string }
 
     # ------------------------------------------------------------------
     # Visit — first-class entity, scoped to a profile
