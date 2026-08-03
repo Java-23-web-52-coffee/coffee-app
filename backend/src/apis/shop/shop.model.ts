@@ -39,6 +39,11 @@ export async function selectAllShops (): Promise<Shop[]> {
     return ShopSchema.array().parse(rowList)
 }
 
+export async function selectShopsByFavoriteProfileId (id: string): Promise<Shop[]> {
+    const rowList = await sql`SELECT id, address, hours, lat, lng, name, phone, image_url FROM shop inner join favorite on shop.id = favorite.shop_id where favorite.profile_id = ${id}`
+    return ShopSchema.array().parse(rowList)
+}
+
 export async function insertShop(shop: Shop): Promise<Shop> {
     ShopSchema.parse(shop)
     const {id, address, hours, lat, lng, name, phone, imageUrl} = shop
