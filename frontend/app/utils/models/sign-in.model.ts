@@ -20,7 +20,7 @@ export async function postSignIn(data: SignIn): Promise<{result: Status, headers
 
     try {
         const response = await fetch
-        (`${process.env.Rest_API_URL}/sign-in`, {
+        (`${process.env.REST_API_URL}/sign-in`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

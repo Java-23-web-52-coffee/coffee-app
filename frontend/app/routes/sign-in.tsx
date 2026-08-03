@@ -58,6 +58,7 @@ console.log("hello world")
 
     // Handle invalid profile data
     if (!validationResult.success) {
+        console.error('failed to parse authorization token:', validationResult.error)
         session.flash('error', 'profile is malformed')
         return {success: false, status: {status: 400, data: null, message: 'sign in attempt failed try again'}}
     }
