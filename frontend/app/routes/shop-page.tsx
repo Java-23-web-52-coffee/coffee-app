@@ -3,7 +3,7 @@ import type {Route} from "../../.react-router/types/app/routes/+types/search-pag
 import {getAllShops, getShopById, type Shop} from "~/utils/models/shop.model";
 
 export async function loader({ params }: Route.LoaderArgs) {
-
+console.log(params)
     const shop: Shop = await getShopById(params.id)
     return{shop}
 }

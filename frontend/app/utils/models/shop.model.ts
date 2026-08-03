@@ -48,3 +48,28 @@ export async function getShopById(id: string): Promise<Shop> {
     const data = await response.json()
     return ShopSchema.parse(data)
 }
+
+export async function getFavoriteShops(authorization : string, cookie?: string | null): Promise<Shop[]> {
+    const url = new URL(`${process.env.REST_API_URL}/shops/favorite/profile`)
+    const headers: HeadersInit = {
+        'Authorization': authorization,
+        'Content-Type': 'application/json'
+
+    }
+    if(cookie){
+        headers['Cookie'] = cookie
+    }
+    const response = await fetch(url, {headers: headers, method: 'GET', credentials: "include"})
+    if(!response.ok) throw new Error(`Failed to fetch favorite shops: ${response.status} ${response.statusText}`)
+    const data = await response.json()
+    return ShopSchema.array().parse(data)
+}
+
+export async function getFavoriteShopsByProfileId(id: string): Promise<Shop[]> {
+    const response = await fetch(`/apis/shop/favorite/${id}`)
+    if(!response.ok) {
+        throw new Response("Failed to get favorite shops", { status: response.status })
+    }
+    return response.json()
+
+}
