@@ -1,5 +1,5 @@
 import type {Request, Response} from 'express';
-import {selectShopById, insertShop, selectAllShops} from "./shop.model.ts";
+import {selectShopById, insertShop, selectAllShops, selectShopsByFavoriteProfileId} from "./shop.model.ts";
 import {sendError, sendServerError, sendZodError} from "../../utils/response.utils.ts";
 import {type Shop, ShopSchema} from "./shop.model.ts";
 import {v7 as uuidv7} from 'uuid';
@@ -81,5 +81,20 @@ export async function getShopByIdController(request: Request, response: Response
         console.error(error)
         sendServerError(request, response)
 
+    }
+}
+
+export async function getShopsByFavoriteProfileId ( request: Request, response: Response)  {
+    try{
+        const profile = request.session.profile
+        if (profile === undefined || profile === null) {
+            sendError(request, response, 401, 'Please login to post a visit')
+            return
+        }
+        const shop = await selectShopsByFavoriteProfileId(profile.id)
+        response.status(200).json(shop)
+    } catch (error) {
+        console.error(error)
+        response.status(500).json({error: 'failed to get shop'})
     }
 }

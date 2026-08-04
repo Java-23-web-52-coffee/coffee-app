@@ -1,7 +1,7 @@
 import {Button, Card} from "flowbite-react";
 import {getAllShops, type Shop} from "~/utils/models/shop.model";
 import type { Route } from './+types/search-page';
-import {ShopCard} from "~/routes/shop-card";
+import {ShopCard} from "~/components/shop-card";
 
 export async function loader({ request }: Route.LoaderArgs) {
     const shops: Shop[] = await getAllShops()
