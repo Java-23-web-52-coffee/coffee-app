@@ -1,6 +1,6 @@
 import {Button} from "flowbite-react";
-import type {Route} from "../../.react-router/types/app/routes/+types/search-page";
 import {getAllShops, getShopById, type Shop} from "~/utils/models/shop.model";
+import type {Route} from "../../.react-router/types/app/routes/+types/shop-page";
 
 export async function loader({ params }: Route.LoaderArgs) {
 console.log(params)

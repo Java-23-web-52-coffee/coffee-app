@@ -1,5 +1,6 @@
 import type {Shop} from "~/utils/models/shop.model";
 import {Button, Card} from "flowbite-react";
+import {Link} from "react-router";
 
 export function SavedShopCard(props: { shop : Shop }) {
     const shop = props.shop
@@ -18,6 +19,8 @@ export function SavedShopCard(props: { shop : Shop }) {
                 <p className="font-normal text-center">
                     {'come back and add tags here'}
                 </p>
+                <Link to={`/shop/${shop.id}`}>
+
                 <Button className={"bg-slate-300 text-black"}>
                     View Details
                     <svg className="ml-2 h-4 w-4" fill="black" viewBox="0 0 20 20"
@@ -29,6 +32,7 @@ export function SavedShopCard(props: { shop : Shop }) {
                         />
                     </svg>
                 </Button>
+                </Link>
             </Card>
         </>
     )
