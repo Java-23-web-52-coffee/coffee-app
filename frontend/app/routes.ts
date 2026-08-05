@@ -12,7 +12,7 @@ export default [
         route('/sign-up', 'routes/sign-up.tsx'),
         route('/sign-in','routes/sign-in.tsx'),
         route("shop/:id/favorite", "routes/favorite.ts"),
-        route('/preferences', 'routes/preferences.tsx'),
+        route('/preferences', 'routes/preferences/preferences.tsx'),
 
     ]),
 ] satisfies RouteConfig;
