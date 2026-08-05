@@ -8,18 +8,6 @@ type PrefValue = "no" | "nice" | "must";
 
 type Item = { id: string; label: string };
 
-const ITEMS: Item[] = [
-    { id: "quiet", label: "Quiet atmosphere" },
-    { id: "wifi", label: "Strong WiFi" },
-    { id: "outlets", label: "Outlets / power" },
-    { id: "seating", label: "Comfortable seating" },
-    { id: "outdoor-seating", label: "Outdoor seating" },
-    { id: "dog-friendly", label: "Dog friendly" },
-    { id: "coffee", label: "Good coffee" },
-    { id: "food", label: "Food options" },
-    { id: "vibe", label: "Vibe / aesthetic" },
-];
-
 const OPTIONS: { value: PrefValue; label: string }[] = [
     { value: "no", label: "No" },
     { value: "nice", label: "Nice" },
@@ -57,7 +45,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export default function Preferences({ loaderData} : Route.ComponentProps) {
     const {interests} = loaderData;
-    console.log(interests)
+
+    // Interest ids come back nullable from the schema; drop any that lack
+    // one since we key preference state and React lists off item.id.
+    const items: Item[] = interests.flatMap((interest) =>
+        interest.id ? [{ id: interest.id, label: interest.category }] : [],
+    );
 
     const [prefs, setPrefs] = useState<Record<string, PrefValue | undefined>>(
         {},
@@ -65,11 +58,11 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
     const [sheetOpen, setSheetOpen] = useState(false);
     const optionRefs = useRef(new Map<string, HTMLButtonElement>());
 
-    const answeredCount = ITEMS.reduce(
+    const answeredCount = items.reduce(
         (count, item) => (prefs[item.id] ? count + 1 : count),
         0,
     );
-    const mustItems = ITEMS.filter((item) => prefs[item.id] === "must");
+    const mustItems = items.filter((item) => prefs[item.id] === "must");
 
     function selectValue(itemId: string, value: PrefValue) {
         setPrefs((prev) => ({ ...prev, [itemId]: value }));
@@ -102,7 +95,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
     }
 
     function finalizeSave() {
-        const payload = ITEMS.reduce(
+        const payload = items.reduce(
             (acc, item) => {
                 acc[item.id] = prefs[item.id] ?? "nice";
                 return acc;
@@ -121,6 +114,11 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
         finalizeSave();
     }
 
+    function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+        event.preventDefault();
+        handleSave();
+    }
+
     return (
         <section className="bg-amber-50">
             <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-16 lg:max-w-4xl xl:max-w-5xl">
@@ -133,7 +131,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                         Your preferences
                     </h1>
                     <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
-                        {answeredCount}/{ITEMS.length} answered
+                        {answeredCount}/{items.length} answered
                     </span>
                 </div>
 
@@ -142,119 +140,120 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                     actually work.
                 </p>
 
-                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                        <h2 className="text-lg font-bold text-gray-900">
-                            How much does each matter?
-                        </h2>
-                        <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                            No &middot; Nice &middot; Must
-                        </span>
-                    </div>
+                <form onSubmit={handleSubmit}>
+                    <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-lg font-bold text-gray-900">
+                                How much does each matter?
+                            </h2>
+                            <span className="text-xs font-medium uppercase tracking-wide text-gray-400">
+                                No &middot; Nice &middot; Must
+                            </span>
+                        </div>
 
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        {ITEMS.map((item) => {
-                            const value = prefs[item.id];
-                            const selectedIndex = value
-                                ? OPTIONS.findIndex(
-                                      (option) => option.value === value,
-                                  )
-                                : 0;
+                        <div className="grid grid-cols-1 gap-3">
+                            {items.map((item) => {
+                                const value = prefs[item.id];
+                                const selectedIndex = value
+                                    ? OPTIONS.findIndex(
+                                          (option) => option.value === value,
+                                      )
+                                    : 0;
 
-                            return (
-                                <div
-                                    key={item.id}
-                                    className="flex flex-col gap-2 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
-                                >
-                                    <span className="text-sm font-medium text-gray-900">
-                                        {item.label}
-                                    </span>
+                                return (
                                     <div
-                                        role="radiogroup"
-                                        aria-label={item.label}
-                                        className="grid grid-cols-3 gap-1.5 sm:w-52 sm:shrink-0"
+                                        key={item.id}
+                                        className="flex flex-col gap-2 rounded-xl border border-gray-100 p-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                                     >
-                                        {OPTIONS.map((option, index) => {
-                                            const isSelected =
-                                                value === option.value;
-                                            return (
-                                                <button
-                                                    key={option.value}
-                                                    ref={(el) => {
-                                                        if (el) {
-                                                            optionRefs.current.set(
-                                                                `${item.id}:${option.value}`,
-                                                                el,
-                                                            );
-                                                        } else {
-                                                            optionRefs.current.delete(
-                                                                `${item.id}:${option.value}`,
-                                                            );
+                                        <span className="text-sm font-medium text-gray-900">
+                                            {item.label}
+                                        </span>
+                                        <div
+                                            role="radiogroup"
+                                            aria-label={item.label}
+                                            className="grid grid-cols-3 gap-1.5 sm:w-52 sm:shrink-0"
+                                        >
+                                            {OPTIONS.map((option, index) => {
+                                                const isSelected =
+                                                    value === option.value;
+                                                return (
+                                                    <button
+                                                        key={option.value}
+                                                        ref={(el) => {
+                                                            if (el) {
+                                                                optionRefs.current.set(
+                                                                    `${item.id}:${option.value}`,
+                                                                    el,
+                                                                );
+                                                            } else {
+                                                                optionRefs.current.delete(
+                                                                    `${item.id}:${option.value}`,
+                                                                );
+                                                            }
+                                                        }}
+                                                        type="button"
+                                                        role="radio"
+                                                        aria-checked={isSelected}
+                                                        tabIndex={
+                                                            index === selectedIndex
+                                                                ? 0
+                                                                : -1
                                                         }
-                                                    }}
-                                                    type="button"
-                                                    role="radio"
-                                                    aria-checked={isSelected}
-                                                    tabIndex={
-                                                        index === selectedIndex
-                                                            ? 0
-                                                            : -1
-                                                    }
-                                                    onClick={() =>
-                                                        toggleValue(
-                                                            item.id,
-                                                            option.value,
-                                                        )
-                                                    }
-                                                    onKeyDown={(event) =>
-                                                        handleOptionKeyDown(
-                                                            event,
-                                                            item.id,
-                                                            index,
-                                                        )
-                                                    }
-                                                    className={`h-10 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-1 ${
-                                                        OPTION_CLASSES[
-                                                            isSelected
-                                                                ? option.value
-                                                                : "unselected"
-                                                        ]
-                                                    }`}
-                                                >
-                                                    {option.label}
-                                                </button>
-                                            );
-                                        })}
+                                                        onClick={() =>
+                                                            toggleValue(
+                                                                item.id,
+                                                                option.value,
+                                                            )
+                                                        }
+                                                        onKeyDown={(event) =>
+                                                            handleOptionKeyDown(
+                                                                event,
+                                                                item.id,
+                                                                index,
+                                                            )
+                                                        }
+                                                        className={`h-10 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-1 ${
+                                                            OPTION_CLASSES[
+                                                                isSelected
+                                                                    ? option.value
+                                                                    : "unselected"
+                                                            ]
+                                                        }`}
+                                                    >
+                                                        {option.label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
 
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-gray-500">
-                        You can change these anytime.
-                    </p>
-                    <div className="flex items-center gap-4 sm:flex-row-reverse">
-                        <button
-                            type="button"
-                            onClick={handleSave}
-                            className="w-full rounded-lg bg-amber-700 px-6 py-3 text-base font-semibold text-white hover:bg-amber-800 sm:w-auto"
-                        >
-                            {answeredCount === 0
-                                ? "Save preferences"
-                                : `Save ${answeredCount} preference${answeredCount === 1 ? "" : "s"}`}
-                        </button>
-                        <button
-                            type="button"
-                            onClick={finalizeSave}
-                            className="font-semibold text-amber-700 hover:text-amber-900"
-                        >
-                            Skip for now
-                        </button>
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-gray-500">
+                            You can change these anytime.
+                        </p>
+                        <div className="flex items-center gap-4 sm:flex-row-reverse">
+                            <button
+                                type="submit"
+                                className="w-full rounded-lg bg-amber-700 px-6 py-3 text-base font-semibold text-white hover:bg-amber-800 sm:w-auto"
+                            >
+                                {answeredCount === 0
+                                    ? "Save preferences"
+                                    : `Save ${answeredCount} preference${answeredCount === 1 ? "" : "s"}`}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={finalizeSave}
+                                className="font-semibold text-amber-700 hover:text-amber-900"
+                            >
+                                Skip for now
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </form>
             </div>
 
             {sheetOpen && (
