@@ -7,7 +7,7 @@ import type { Status } from "~/utils/interfaces/Status";
 
 export const PreferenceRequestSchema = z.object({
     interestId: z.uuidv7('Please provide a valid uuid for interestId'),
-    importance: z.number('Please provide a valid importance').min(1).max(5),
+    importance: z.number('Please provide a valid importance').min(0).max(5),
 })
 
 export type PreferenceRequest = z.infer<typeof PreferenceRequestSchema>

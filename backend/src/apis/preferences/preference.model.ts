@@ -3,12 +3,14 @@ import { sql } from '../../utils/database.utils.ts'
 
 //
 // schema for validating preference objects along with weighting an interest
-// preference table contains profileId, interestId, and importance
+// preference table contains profileId, interestId, and importance.
+// importance 0 is a real, persisted value — it means "no", not "unrated" —
+// so it overwrites (rather than deletes) a previously saved preference.
 
 export const PreferenceModel = z.object({
     profileId: z.uuidv7('Please provide a valid uuid for profileId'),
     interestId: z.uuidv7('Please provide a valid uuid for interestId'),
-    importance: z.number('Please provide a valid importance').min(1).max(5)
+    importance: z.number('Please provide a valid importance').min(0).max(5)
 })
 
 export type Preference = z.infer<typeof PreferenceModel>
@@ -17,7 +19,7 @@ export type Preference = z.infer<typeof PreferenceModel>
 // columns as strings (to avoid float precision loss), so rows read back out
 // of the database need to be coerced before they satisfy PreferenceModel.
 const PreferenceRowModel = PreferenceModel.extend({
-    importance: z.coerce.number().min(1).max(5)
+    importance: z.coerce.number().min(0).max(5)
 })
 
 //

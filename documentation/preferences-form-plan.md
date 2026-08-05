@@ -1,9 +1,17 @@
 # Plan: wire up the preferences form
 
 Status: **implemented.** Decisions confirmed during implementation:
-- Value mapping: `no`/unanswered → skip, `nice` → `3`, `must` → `5`.
-- Delete-on-downgrade: out of scope for this pass (no GET-preload yet) —
-  still a fast-follow.
+- Value mapping (revised after initial implementation): `no` → `importance:
+  0` — a real, persisted answer, submitted like any other rating. This
+  doubles as the answer to "delete on downgrade": re-saving an interest as
+  `no` overwrites (via the existing 409→PUT retry) a previously saved
+  `nice`/`must` for that interest instead of leaving it stale. `nice` →
+  `3`, `must` → `5`. Only interests the profile has never touched
+  (`prefs[id]` is `undefined`) are left out of the submission — importance
+  is `0`–`5` on both frontend and backend (`PreferenceRequestSchema`,
+  `PreferenceModel`) and in `openapi.yaml` to allow this.
+- Explicit deletion (a `DELETE` call, vs. overwriting with `0`) is still out
+  of scope — not needed now that "no" persists as `0`.
 - Must-have tie-break: differentiated — the picked item gets `importance: 5`,
   the other "must" items get `importance: 4`. Skipping the sheet (or the
   backdrop/"Skip for now") leaves every "must" item at `5`.

@@ -22,3 +22,4 @@ export const MUST_HAVE_SOFT_CAP = 5;
 export const MUST_IMPORTANCE = 5;
 export const MUST_RUNNER_UP_IMPORTANCE = 4;
 export const NICE_IMPORTANCE = 3;
+export const NO_IMPORTANCE = 0;

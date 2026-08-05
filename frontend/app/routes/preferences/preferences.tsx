@@ -18,6 +18,7 @@ import {
     MUST_IMPORTANCE,
     MUST_RUNNER_UP_IMPORTANCE,
     NICE_IMPORTANCE,
+    NO_IMPORTANCE,
     type Item,
     type PrefValue,
 } from "./preferences.constants";
@@ -104,8 +105,10 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
         }));
     }
 
-    // "no" and unanswered items are left out entirely — rating something is
-    // an explicit signal, so silence is never treated as a preference.
+    // "No" is a real, persisted answer — it's saved as importance 0, which
+    // overwrites (via the 409→PUT retry) any "nice"/"must" previously saved
+    // for that interest. Only truly unanswered items are left out of the
+    // submission entirely.
     function buildPreferenceEntries(pickedMustId: string | null): PreferenceRequest[] {
         return items.flatMap((item) => {
             const value = prefs[item.id];
@@ -117,6 +120,8 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                         : MUST_RUNNER_UP_IMPORTANCE;
             } else if (value === "nice") {
                 importance = NICE_IMPORTANCE;
+            } else if (value === "no") {
+                importance = NO_IMPORTANCE;
             }
             return importance === null ? [] : [{ interestId: item.id, importance }];
         });
