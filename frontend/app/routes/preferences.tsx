@@ -1,4 +1,8 @@
 import { useRef, useState } from "react";
+import { getAllInterest } from "~/utils/models/interest.model";
+import type {Route} from "./+types/preferences"
+import {getSession} from "~/utils/session.server";
+import {redirect} from "react-router";
 
 type PrefValue = "no" | "nice" | "must";
 
@@ -31,7 +35,30 @@ const OPTION_CLASSES: Record<"unselected" | PrefValue, string> = {
 
 const MUST_HAVE_SOFT_CAP = 5;
 
-export default function Preferences() {
+export async function loader({ request }: Route.LoaderArgs) {
+    const cookie = request.headers.get("cookie")
+    const session = await getSession(cookie)
+
+    const profile = session.get("profile")
+    const authorization = session.get("authorization")
+
+    if (!authorization || !profile){
+        return redirect("/sign-in")
+    }try{
+        const interests = await getAllInterest()
+        return { interests }
+    }catch (error){
+        console.error(error)
+        return { interests: [] }
+    }
+
+
+}
+
+export default function Preferences({ loaderData} : Route.ComponentProps) {
+    const {interests} = loaderData;
+    console.log(interests)
+
     const [prefs, setPrefs] = useState<Record<string, PrefValue | undefined>>(
         {},
     );
