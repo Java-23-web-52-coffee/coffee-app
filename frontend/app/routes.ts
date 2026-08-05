@@ -10,7 +10,8 @@ export default [
         route('/saved','routes/saved/saved.tsx'),
         route('/experience-log','routes/experience-log.tsx'),
         route('/sign-up', 'routes/sign-up.tsx'),
-        route('/sign-in','routes/sign-in.tsx')
+        route('/sign-in','routes/sign-in.tsx'),
+        route("shop/:id/favorite", "routes/favorite.ts"),
 
     ])
 ] satisfies RouteConfig;

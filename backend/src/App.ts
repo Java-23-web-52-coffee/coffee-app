@@ -54,6 +54,7 @@ export class App {
         this.app.use(visitRoute.basePath, visitRoute.router)
         this.app.use(interestRoute.basePath, interestRoute.router)
         this.app.use(favoritesRoute.basePath, favoritesRoute.router)
+
     }
 
     // starts the server and tells the terminal to post a message that the server is running and on what port
