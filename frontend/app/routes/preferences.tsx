@@ -1,8 +1,18 @@
 import { useRef, useState } from "react";
+import { Form, redirect, useActionData } from "react-router";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { getValidatedFormData, useRemixForm } from "remix-hook-form";
 import { getAllInterest } from "~/utils/models/interest.model";
-import type {Route} from "./+types/preferences"
-import {getSession} from "~/utils/session.server";
-import {redirect} from "react-router";
+import {
+    postPreferences,
+    PreferencesFormSchema,
+    type PreferenceRequest,
+    type PreferencesForm,
+} from "~/utils/models/preference.model";
+import type { FormActionResponse } from "~/utils/interfaces/FormActionResponse";
+import { StatusMessage } from "~/components/StatusMessage";
+import { getSession } from "~/utils/session.server";
+import type { Route } from "./+types/preferences"
 
 type PrefValue = "no" | "nice" | "must";
 
@@ -22,6 +32,14 @@ const OPTION_CLASSES: Record<"unselected" | PrefValue, string> = {
 };
 
 const MUST_HAVE_SOFT_CAP = 5;
+
+// "must" items past the soft cap all default to this weight; the tie-break
+// sheet lets the profile single one out to carry full weight instead.
+const MUST_IMPORTANCE = 5;
+const MUST_RUNNER_UP_IMPORTANCE = 4;
+const NICE_IMPORTANCE = 3;
+
+const resolver = zodResolver(PreferencesFormSchema)
 
 export async function loader({ request }: Route.LoaderArgs) {
     const cookie = request.headers.get("cookie")
@@ -43,6 +61,26 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 }
 
+export async function action({ request }: Route.ActionArgs): Promise<FormActionResponse | Response> {
+    const cookie = request.headers.get("cookie")
+    const session = await getSession(cookie)
+
+    const profile = session.get("profile")
+    const authorization = session.get("authorization")
+
+    if (!authorization || !profile) {
+        return redirect("/sign-in")
+    }
+
+    const { errors, data, receivedValues: defaultValues } = await getValidatedFormData<PreferencesForm>(request, resolver)
+    if (errors) {
+        return { errors, defaultValues }
+    }
+
+    const status = await postPreferences(data.preferences, authorization, cookie)
+    return { success: status.status === 200, status }
+}
+
 export default function Preferences({ loaderData} : Route.ComponentProps) {
     const {interests} = loaderData;
 
@@ -57,6 +95,13 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
     );
     const [sheetOpen, setSheetOpen] = useState(false);
     const optionRefs = useRef(new Map<string, HTMLButtonElement>());
+
+    const { handleSubmit, setValue } = useRemixForm<PreferencesForm>({
+        mode: "onSubmit",
+        resolver,
+        defaultValues: { preferences: [] },
+    });
+    const actionData = useActionData<typeof action>();
 
     const answeredCount = items.reduce(
         (count, item) => (prefs[item.id] ? count + 1 : count),
@@ -94,29 +139,41 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
         optionRefs.current.get(`${itemId}:${nextValue}`)?.focus();
     }
 
-    function finalizeSave() {
-        const payload = items.reduce(
-            (acc, item) => {
-                acc[item.id] = prefs[item.id] ?? "nice";
-                return acc;
-            },
-            {} as Record<string, PrefValue>,
-        );
-        console.log("Saving preferences", payload);
-        setSheetOpen(false);
+    // "no" and unanswered items are left out entirely — rating something is
+    // an explicit signal, so silence is never treated as a preference.
+    function buildPreferenceEntries(pickedMustId: string | null): PreferenceRequest[] {
+        return items.flatMap((item) => {
+            const value = prefs[item.id];
+            let importance: number | null = null;
+            if (value === "must") {
+                importance =
+                    pickedMustId === null || pickedMustId === item.id
+                        ? MUST_IMPORTANCE
+                        : MUST_RUNNER_UP_IMPORTANCE;
+            } else if (value === "nice") {
+                importance = NICE_IMPORTANCE;
+            }
+            return importance === null ? [] : [{ interestId: item.id, importance }];
+        });
     }
 
-    function handleSave() {
+    // Used by every path that doesn't go through the form's native submit:
+    // the tie-break sheet's per-item picks, its "Skip" button, the backdrop
+    // click, and the footer's "Skip for now" link.
+    function finalizeSave(pickedMustId: string | null = null) {
+        setValue("preferences", buildPreferenceEntries(pickedMustId));
+        setSheetOpen(false);
+        void handleSubmit();
+    }
+
+    function handleFormSubmit(event: React.SubmitEvent<HTMLFormElement>) {
         if (mustItems.length >= MUST_HAVE_SOFT_CAP) {
+            event.preventDefault();
             setSheetOpen(true);
             return;
         }
-        finalizeSave();
-    }
-
-    function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-        event.preventDefault();
-        handleSave();
+        setValue("preferences", buildPreferenceEntries(null));
+        handleSubmit(event);
     }
 
     return (
@@ -140,7 +197,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                     actually work.
                 </p>
 
-                <form onSubmit={handleSubmit}>
+                <Form onSubmit={handleFormSubmit} noValidate method="POST">
                     <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
                         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                             <h2 className="text-lg font-bold text-gray-900">
@@ -246,21 +303,23 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                             </button>
                             <button
                                 type="button"
-                                onClick={finalizeSave}
+                                onClick={() => finalizeSave()}
                                 className="font-semibold text-amber-700 hover:text-amber-900"
                             >
                                 Skip for now
                             </button>
                         </div>
                     </div>
-                </form>
+
+                    <StatusMessage actionData={actionData} />
+                </Form>
             </div>
 
             {sheetOpen && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
                     <div
                         className="absolute inset-0 bg-gray-900/40"
-                        onClick={finalizeSave}
+                        onClick={() => finalizeSave()}
                     />
                     <div
                         role="dialog"
@@ -285,7 +344,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                                     type="button"
                                     role="radio"
                                     aria-checked={false}
-                                    onClick={finalizeSave}
+                                    onClick={() => finalizeSave(item.id)}
                                     className="grid h-11 items-center rounded-lg border border-gray-200 px-3.5 text-left text-sm font-medium text-gray-900 transition-colors duration-150 hover:border-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 motion-reduce:transition-none"
                                 >
                                     {item.label}
@@ -294,7 +353,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                         </div>
                         <button
                             type="button"
-                            onClick={finalizeSave}
+                            onClick={() => finalizeSave()}
                             className="self-start font-semibold text-amber-700 hover:text-amber-900"
                         >
                             Skip
