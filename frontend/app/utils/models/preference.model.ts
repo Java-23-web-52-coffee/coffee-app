@@ -12,6 +12,15 @@ export const PreferenceRequestSchema = z.object({
 
 export type PreferenceRequest = z.infer<typeof PreferenceRequestSchema>
 
+// the full saved preference record as returned by GET /profiles/me/preferences
+export const PreferenceSchema = z.object({
+    profileId: z.uuidv7('Please provide a valid uuid for profileId'),
+    interestId: z.uuidv7('Please provide a valid uuid for interestId'),
+    importance: z.coerce.number('Please provide a valid importance').min(0).max(5),
+})
+
+export type Preference = z.infer<typeof PreferenceSchema>
+
 // the preferences form submits every rated interest in one go
 export const PreferencesFormSchema = z.object({
     preferences: z.array(PreferenceRequestSchema),
@@ -28,6 +37,28 @@ function preferenceHeaders(authorization: string, cookie?: string | null): Heade
         headers['Cookie'] = cookie
     }
     return headers
+}
+
+/**
+ * Fetch every preference the signed-in profile has saved, so the form can
+ * be pre-populated with their prior No/Nice/Must selections on load.
+ */
+export async function getMyPreferences(authorization: string, cookie?: string | null): Promise<Preference[]> {
+    const url = new URL(`${process.env.REST_API_URL}/profiles/me/preferences`)
+    const headers: HeadersInit = {
+        'Authorization': authorization,
+        'Content-Type': 'application/json',
+    }
+    if (cookie) {
+        headers['Cookie'] = cookie
+    }
+
+    const response = await fetch(url, { headers, method: 'GET', credentials: 'include' })
+    if (!response.ok) {
+        throw new Error(`Failed to fetch preferences: ${response.status} ${response.statusText}`)
+    }
+    const data = await response.json()
+    return PreferenceSchema.array().parse(data)
 }
 
 /**

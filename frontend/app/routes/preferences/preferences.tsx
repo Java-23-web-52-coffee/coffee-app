@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
 import { getAllInterest } from "~/utils/models/interest.model";
 import {
+    getMyPreferences,
     postPreferences,
     PreferencesFormSchema,
     type PreferenceRequest,
@@ -19,6 +20,7 @@ import {
     MUST_RUNNER_UP_IMPORTANCE,
     NICE_IMPORTANCE,
     NO_IMPORTANCE,
+    importanceToPrefValue,
     type Item,
     type PrefValue,
 } from "./preferences.constants";
@@ -36,15 +38,20 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     if (!authorization || !profile){
         return redirect("/sign-in")
-    }try{
-        const interests = await getAllInterest()
-        return { interests }
-    }catch (error){
-        console.error(error)
-        return { interests: [] }
     }
 
+    const [interestsResult, preferencesResult] = await Promise.allSettled([
+        getAllInterest(),
+        getMyPreferences(authorization, cookie),
+    ])
 
+    if (interestsResult.status === "rejected") console.error(interestsResult.reason)
+    if (preferencesResult.status === "rejected") console.error(preferencesResult.reason)
+
+    return {
+        interests: interestsResult.status === "fulfilled" ? interestsResult.value : [],
+        preferences: preferencesResult.status === "fulfilled" ? preferencesResult.value : [],
+    }
 }
 
 export async function action({ request }: Route.ActionArgs): Promise<FormActionResponse | Response> {
@@ -68,7 +75,7 @@ export async function action({ request }: Route.ActionArgs): Promise<FormActionR
 }
 
 export default function Preferences({ loaderData} : Route.ComponentProps) {
-    const {interests} = loaderData;
+    const {interests, preferences} = loaderData;
 
     // Interest ids come back nullable from the schema; drop any that lack
     // one since we key preference state and React lists off item.id.
@@ -76,8 +83,18 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
         interest.id ? [{ id: interest.id, label: interest.category }] : [],
     );
 
+    // Pre-populate from whatever the profile already saved, so returning to
+    // this page shows prior selections instead of a blank form. Only items
+    // present in `preferences` get a key here — an unrated item stays
+    // undefined, distinct from one explicitly saved as "no".
     const [prefs, setPrefs] = useState<Record<string, PrefValue | undefined>>(
-        {},
+        () => {
+            const initial: Record<string, PrefValue | undefined> = {};
+            for (const preference of preferences) {
+                initial[preference.interestId] = importanceToPrefValue(preference.importance);
+            }
+            return initial;
+        },
     );
     const [sheetOpen, setSheetOpen] = useState(false);
 

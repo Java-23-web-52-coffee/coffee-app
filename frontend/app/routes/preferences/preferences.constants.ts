@@ -23,3 +23,14 @@ export const MUST_IMPORTANCE = 5;
 export const MUST_RUNNER_UP_IMPORTANCE = 4;
 export const NICE_IMPORTANCE = 3;
 export const NO_IMPORTANCE = 0;
+
+// Inverse of the forward mapping above: turns a saved 0–5 importance back
+// into the UI's tri-state value. Uses thresholds (not exact equality) so
+// both MUST_IMPORTANCE (5, the picked tie-break winner) and
+// MUST_RUNNER_UP_IMPORTANCE (4, everyone else marked "must") map back to
+// "must", and any legacy/edge decimal values still resolve sensibly.
+export function importanceToPrefValue(importance: number): PrefValue {
+    if (importance >= MUST_RUNNER_UP_IMPORTANCE) return "must";
+    if (importance > NO_IMPORTANCE) return "nice";
+    return "no";
+}
