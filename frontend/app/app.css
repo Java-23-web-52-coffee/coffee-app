@@ -1,3 +1,8 @@
 @import "tailwindcss";
 @import "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
+
+@theme {
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}

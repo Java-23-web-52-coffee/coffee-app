@@ -71,7 +71,7 @@ console.log("hello world")
     if (expressSessionCookie) {
         responseHeaders.append('Set-Cookie', expressSessionCookie)
     }
-    return redirect('/', {headers: responseHeaders})
+    return redirect('/preferences', {headers: responseHeaders})
 }
 
 export default function SignIn() {
