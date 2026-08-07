@@ -799,7 +799,7 @@ components:
         shopId: { $ref: '#/components/schemas/Uuid' }
 
     # ------------------------------------------------------------------
-    # Preference — association; importance is a 0-5 weight. 0 is a real,
+    # Preference — association; importance is a 0-1 weight. 0 is a real,
     # persisted "no" answer, not "unrated" — it overwrites rather than
     # deletes a previously saved preference.
     # ------------------------------------------------------------------
@@ -809,7 +809,7 @@ components:
       properties:
         profileId: { $ref: '#/components/schemas/Uuid' }
         interestId: { $ref: '#/components/schemas/Uuid' }
-        importance: { type: number, minimum: 0, maximum: 5 }
+        importance: { type: number, minimum: 0, maximum: 1 }
 
     PreferenceRequest:
       type: object
@@ -817,13 +817,13 @@ components:
       description: Server owns profileId (from session).
       properties:
         interestId: { $ref: '#/components/schemas/Uuid' }
-        importance: { type: number, minimum: 0, maximum: 5 }
+        importance: { type: number, minimum: 0, maximum: 1 }
 
     PreferenceUpdateRequest:
       type: object
       required: [importance]
       properties:
-        importance: { type: number, minimum: 0, maximum: 5 }
+        importance: { type: number, minimum: 0, maximum: 1 }
 
     # ------------------------------------------------------------------
     # Rating — association scoped under a visit; value is a 1-5 score

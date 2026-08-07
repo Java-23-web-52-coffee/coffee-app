@@ -48,15 +48,17 @@ interests (nobody's rated it yet, or it opened last week). Rather than
 dropping the shop, substitute a **neutral default** at the midpoint of the
 rating scale so an unrated interest neither helps nor hurts the match:
 
-- Recommend a **1–5 decimal scale** for both `rating.value` and
-  `preference.importance` (simple to render as stars/sliders in the
-  frontend, human-readable, easy to validate). Neutral default = `3`.
-- This isn't currently enforced anywhere — `sql/project.sql` declares both
-  columns as bare `decimal` with no `CHECK`, and there's no Zod schema for
-  either table yet. Before implementing, add `CHECK (value BETWEEN 1 AND
-  5)` / `CHECK (importance BETWEEN 1 AND 5)` (and matching Zod `.min(1)
-  .max(5)`) so the distance function's assumptions actually hold at the
-  DB layer, not just in application code.
+- Recommend a **1–5 decimal scale** for `rating.value` (simple to render as
+  stars/sliders in the frontend, human-readable, easy to validate). Neutral
+  default = `3`. `preference.importance` instead uses a **0–1 decimal
+  scale** (`0`/`0.5`/`0.8`/`1`, matching the frontend's no/nice/must-runner-up/
+  must presets), enforced by Zod `.min(0).max(1)` on both frontend and
+  backend.
+- This isn't currently enforced at the DB layer — `sql/project.sql` declares
+  both columns as bare `decimal` with no `CHECK`. Before implementing rating,
+  consider adding `CHECK (value BETWEEN 1 AND 5)` (and matching Zod
+  `.min(1).max(5)`) so the distance function's assumptions actually hold at
+  the DB layer, not just in application code.
 
 ## 3. Distance function
 

@@ -6,15 +6,15 @@ Status: **implemented.** Decisions confirmed during implementation:
   doubles as the answer to "delete on downgrade": re-saving an interest as
   `no` overwrites (via the existing 409→PUT retry) a previously saved
   `nice`/`must` for that interest instead of leaving it stale. `nice` →
-  `3`, `must` → `5`. Only interests the profile has never touched
+  `0.5`, `must` → `1`. Only interests the profile has never touched
   (`prefs[id]` is `undefined`) are left out of the submission — importance
-  is `0`–`5` on both frontend and backend (`PreferenceRequestSchema`,
+  is `0`–`1` on both frontend and backend (`PreferenceRequestSchema`,
   `PreferenceModel`) and in `openapi.yaml` to allow this.
 - Explicit deletion (a `DELETE` call, vs. overwriting with `0`) is still out
   of scope — not needed now that "no" persists as `0`.
-- Must-have tie-break: differentiated — the picked item gets `importance: 5`,
-  the other "must" items get `importance: 4`. Skipping the sheet (or the
-  backdrop/"Skip for now") leaves every "must" item at `5`.
+- Must-have tie-break: differentiated — the picked item gets `importance: 1`,
+  the other "must" items get `importance: 0.8`. Skipping the sheet (or the
+  backdrop/"Skip for now") leaves every "must" item at `1`.
 
 ## Context
 
@@ -52,7 +52,7 @@ targets (search `Preference` in that file):
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/apis/profiles/me/preferences` | create one preference — body `{ interestId, importance }`, `importance` is `1`–`5` |
+| `POST` | `/apis/profiles/me/preferences` | create one preference — body `{ interestId, importance }`, `importance` is `0`–`1` |
 | `GET` | `/apis/profiles/me/preferences` | list the signed-in profile's preferences |
 | `PUT` | `/apis/profiles/me/preferences/{interestId}` | update one preference's importance |
 | `DELETE` | `/apis/profiles/me/preferences/{interestId}` | idempotent remove |
@@ -69,19 +69,19 @@ backend work below has to land first (or alongside).
 ### The data-shape mismatch that needs a decision
 
 The UI rates each interest on a 3-way scale (`no` / `nice` / `must`); the
-backend's `importance` is a `1`–`5` number. These need an explicit mapping.
+backend's `importance` is a `0`–`1` number. These need an explicit mapping.
 Proposed, to confirm before implementing:
 
 - `no` → **no request sent** — "don't care" isn't a weighted preference, so
   no row is created for that interest.
-- `nice` → `importance: 3`
-- `must` → `importance: 5`
+- `nice` → `importance: 0.5`
+- `must` → `importance: 1`
 
 This also means the must-have tie-break sheet's "if a cafe only got one of
 these right, which?" answer isn't captured anywhere distinct today (every
 button in that sheet just calls `finalizeSave`) — that stays true after
 this change unless we decide to differentiate the picked item (e.g.
-`importance: 5` for the pick, `importance: 4` for the rest). Flagging as an
+`importance: 1` for the pick, `importance: 0.8` for the rest). Flagging as an
 open question rather than deciding it here.
 
 ## Backend work
@@ -118,7 +118,7 @@ association-entity — no surrogate id, composite key, profile-scoped).
 ## Frontend work
 
 1. **`frontend/app/utils/models/preference.model.ts`** (new):
-   - `PreferenceRequestSchema` (`interestId` uuid + `importance` `1`–`5`
+   - `PreferenceRequestSchema` (`interestId` uuid + `importance` `0`–`1`
      number), inferred `PreferenceRequest` type — same shape as
      `favoriteSchema`.
    - `postPreference(entry, authorization, cookie)`: same header/credential
@@ -152,8 +152,8 @@ association-entity — no surrogate id, composite key, profile-scoped).
      so react-hook-form can't `register()` it directly. Add `useRemixForm`
      and bridge the two by calling `setValue("preferences", derived)`
      whenever `prefs` changes (e.g. inside `toggleValue`, or a `useEffect`
-     keyed on `prefs`), where `derived` applies the no/nice/must → skip/3/5
-     mapping over `items`.
+     keyed on `prefs`), where `derived` applies the no/nice/must →
+     skip/0.5/1 mapping over `items`.
    - Swap the plain `<form onSubmit={handleSubmit}>` (added when the
      rating list was put in a form) for `react-router`'s `<Form
      onSubmit={handleSubmit} noValidate method="POST">`, with
@@ -172,7 +172,7 @@ association-entity — no surrogate id, composite key, profile-scoped).
 
 ## Open questions to confirm before implementing
 
-- Confirm (or adjust) the `no` → skip / `nice` → `3` / `must` → `5`
+- Confirm (or adjust) the `no` → skip / `nice` → `0.5` / `must` → `1`
   mapping.
 - Should downgrading an interest to `no` on a later visit delete its
   existing preference row? Doing that requires the loader to also fetch
@@ -180,7 +180,7 @@ association-entity — no surrogate id, composite key, profile-scoped).
   and seed `prefs` from them — out of scope for this first pass, called out
   as a fast-follow.
 - Should the must-have tie-break sheet's picked item get a distinct
-  `importance` (e.g. `5` for the pick, `4` for the rest)? Currently no
+  `importance` (e.g. `1` for the pick, `0.8` for the rest)? Currently no
   answer from that sheet is captured at all.
 
 ## Verification
