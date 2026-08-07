@@ -41,7 +41,11 @@ export class App {
             store: this.redisStore,
             saveUninitialized: false,
             secret: process.env.SESSION_SECRET as string,
-            resave: false
+            resave: false,
+            cookie: {
+                maxAge: 3 * 60 * 60 * 1000, // 3h — keep in lockstep with earl-grey's maxAge: 10800
+                httpOnly: true
+            }
         }))
     }
     // private method for setting up routes in their basic sense (ie. any route that performs an action on profiles starts with /profiles)
