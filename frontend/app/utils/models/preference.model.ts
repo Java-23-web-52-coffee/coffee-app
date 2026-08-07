@@ -55,7 +55,9 @@ export async function getMyPreferences(authorization: string, cookie?: string | 
 
     const response = await fetch(url, { headers, method: 'GET', credentials: 'include' })
     if (!response.ok) {
-        throw new Error(`Failed to fetch preferences: ${response.status} ${response.statusText}`)
+        const error = new Error(`Failed to fetch preferences: ${response.status} ${response.statusText}`)
+        ;(error as { status?: number }).status = response.status
+        throw error
     }
     const data = await response.json()
     return PreferenceSchema.array().parse(data)
