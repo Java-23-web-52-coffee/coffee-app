@@ -56,7 +56,7 @@ const navbarBreakpointOverride = {
         return (
             <>
             <Navbar fluid rounded className="bg-white  border-b border-b-gray-200" {...navbarBreakpointOverride}>
-                <NavbarBrand href="#">
+                <NavbarBrand href="/">
                     <img src='/coffee.svg' className="mr-3 h-6 sm:h-9" alt="coffee logo" />
                     <span className="self-center whitespace-nowrap text-2xl font-semibold ">BrewMatch</span>
                 </NavbarBrand>
@@ -73,7 +73,7 @@ const navbarBreakpointOverride = {
                          </div>
                          </NavbarLink>
 
-                    <NavbarLink href="#">
+                    <NavbarLink href="/saved">
                         <div className="flex items-center gap-1  lg:flex">
                             <img src={'/save.svg'}  className={"h-5"}/>
                             <span>Saved Places</span>
@@ -87,10 +87,10 @@ const navbarBreakpointOverride = {
                         </div>
                     </NavbarLink>
 
-                    <NavbarLink href="#">
+                    <NavbarLink href="/preferences">
                         <div className="flex items-center gap-1  lg:flex">
                             <img src={'/user.svg'}  className={"h-5"}/>
-                            <span>My Profile</span>
+                            <span>Preferences</span>
                         </div>
                     </NavbarLink>
 
