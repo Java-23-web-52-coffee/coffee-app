@@ -12,7 +12,7 @@ import {
 } from "~/utils/models/preference.model";
 import type { FormActionResponse } from "~/utils/interfaces/FormActionResponse";
 import { StatusMessage } from "~/components/StatusMessage";
-import { getSession } from "~/utils/session.server";
+import { destroySession, getSession } from "~/utils/session.server";
 import type { Route } from "./+types/preferences"
 import {
     MUST_HAVE_SOFT_CAP,
@@ -47,6 +47,15 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     if (interestsResult.status === "rejected") console.error(interestsResult.reason)
     if (preferencesResult.status === "rejected") console.error(preferencesResult.reason)
+
+    if (
+        preferencesResult.status === "rejected" &&
+        (preferencesResult.reason as { status?: number })?.status === 401
+    ) {
+        return redirect("/sign-in", {
+            headers: { "Set-Cookie": await destroySession(session) },
+        })
+    }
 
     return {
         interests: interestsResult.status === "fulfilled" ? interestsResult.value : [],

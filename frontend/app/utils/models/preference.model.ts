@@ -7,7 +7,7 @@ import type { Status } from "~/utils/interfaces/Status";
 
 export const PreferenceRequestSchema = z.object({
     interestId: z.uuidv7('Please provide a valid uuid for interestId'),
-    importance: z.number('Please provide a valid importance').min(0).max(5),
+    importance: z.number('Please provide a valid importance').min(0).max(1),
 })
 
 export type PreferenceRequest = z.infer<typeof PreferenceRequestSchema>
@@ -16,7 +16,7 @@ export type PreferenceRequest = z.infer<typeof PreferenceRequestSchema>
 export const PreferenceSchema = z.object({
     profileId: z.uuidv7('Please provide a valid uuid for profileId'),
     interestId: z.uuidv7('Please provide a valid uuid for interestId'),
-    importance: z.coerce.number('Please provide a valid importance').min(0).max(5),
+    importance: z.coerce.number('Please provide a valid importance').min(0).max(1),
 })
 
 export type Preference = z.infer<typeof PreferenceSchema>
@@ -55,7 +55,9 @@ export async function getMyPreferences(authorization: string, cookie?: string | 
 
     const response = await fetch(url, { headers, method: 'GET', credentials: 'include' })
     if (!response.ok) {
-        throw new Error(`Failed to fetch preferences: ${response.status} ${response.statusText}`)
+        const error = new Error(`Failed to fetch preferences: ${response.status} ${response.statusText}`)
+        ;(error as { status?: number }).status = response.status
+        throw error
     }
     const data = await response.json()
     return PreferenceSchema.array().parse(data)

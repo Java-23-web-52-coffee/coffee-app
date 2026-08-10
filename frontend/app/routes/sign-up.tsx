@@ -167,11 +167,13 @@ export default function SignUp() {
                 <StatusMessage actionData={actionData} />
 
                 {/*sign in link*/}
-                <Link
-                    to="/sign-in"
-                >
-                    Already have an account? Sign in
-                </Link>
+                <div className="mt-4 text-center">
+                    <Link
+                        to="/sign-in"
+                    >
+                        Already have an account? Sign in
+                    </Link>
+                </div>
 
             </Form>
 

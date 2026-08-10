@@ -15,6 +15,7 @@ import {visitRoute} from "./apis/visit/visit.route.ts";
 import {interestRoute} from "./apis/interest/interest.route.ts";
 import {favoritesRoute} from "./apis/favorites/favorites.route.ts";
 import {preferenceRoute} from "./apis/preferences/preference.route.ts";
+import {ratingsRoute} from "./apis/ratings/ratings.route.ts";
 
 export class App {
     app: Application
@@ -41,7 +42,11 @@ export class App {
             store: this.redisStore,
             saveUninitialized: false,
             secret: process.env.SESSION_SECRET as string,
-            resave: false
+            resave: false,
+            cookie: {
+                maxAge: 3 * 60 * 60 * 1000, // 3h — keep in lockstep with earl-grey's maxAge: 10800
+                httpOnly: true
+            }
         }))
     }
     // private method for setting up routes in their basic sense (ie. any route that performs an action on profiles starts with /profiles)
@@ -56,6 +61,7 @@ export class App {
         this.app.use(interestRoute.basePath, interestRoute.router)
         this.app.use(favoritesRoute.basePath, favoritesRoute.router)
         this.app.use(preferenceRoute.basePath, preferenceRoute.router)
+        this.app.use(ratingsRoute.basePath, ratingsRoute.router)
 
     }
 
