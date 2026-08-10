@@ -15,6 +15,7 @@ import {visitRoute} from "./apis/visit/visit.route.ts";
 import {interestRoute} from "./apis/interest/interest.route.ts";
 import {favoritesRoute} from "./apis/favorites/favorites.route.ts";
 import {preferenceRoute} from "./apis/preferences/preference.route.ts";
+import {ratingsRoute} from "./apis/ratings/ratings.route.ts";
 
 export class App {
     app: Application
@@ -60,6 +61,7 @@ export class App {
         this.app.use(interestRoute.basePath, interestRoute.router)
         this.app.use(favoritesRoute.basePath, favoritesRoute.router)
         this.app.use(preferenceRoute.basePath, preferenceRoute.router)
+        this.app.use(ratingsRoute.basePath, ratingsRoute.router)
 
     }
 
