@@ -1,5 +1,11 @@
 import type {Request, Response} from 'express';
-import {selectShopById, insertShop, selectAllShops, selectShopsByFavoriteProfileId} from "./shop.model.ts";
+import {
+    selectShopById,
+    insertShop,
+    selectAllShops,
+    selectShopsByFavoriteProfileId,
+    selectShopsBySearchTerm
+} from "./shop.model.ts";
 import {sendError, sendServerError, sendZodError} from "../../utils/response.utils.ts";
 import {type Shop, ShopSchema} from "./shop.model.ts";
 import {v7 as uuidv7} from 'uuid';
@@ -10,9 +16,24 @@ import {z} from 'zod/v4'
 
 
 export async function getAllShopsController(request: Request, response: Response):Promise<void> {
-    //run select all shops function
     try {
-        const shops = await selectAllShops()
+        // an absent or blank q means "list everything", so empty strings collapse to undefined
+        const validationResult = z.string('Please provide a valid search term')
+            .trim()
+            .max(63)
+            .transform(term => term.length === 0 ? undefined : term)
+            .optional()
+            .safeParse(request.query.q)
+        if (!validationResult.success) {
+            sendZodError(request, response, validationResult.error)
+            return
+        }
+        const searchTerm = validationResult.data
+
+        //run select all shops function, narrowing to the search term when one was supplied
+        const shops = searchTerm === undefined
+            ? await selectAllShops()
+            : await selectShopsBySearchTerm(searchTerm)
 
         //prepare response with shops from database
         response.json(shops)
