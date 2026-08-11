@@ -1,9 +1,8 @@
-import {Button} from "flowbite-react";
-import {getAllShops, getFavoriteShops, getShopById, type Shop} from "~/utils/models/shop.model";
+import {getShopById, type Shop} from "~/utils/models/shop.model";
 import type {Route} from "../../.react-router/types/app/routes/+types/shop-page";
 import {getSession} from "~/utils/session.server";
 import {redirect, useFetcher} from "react-router";
-import {type Favorite, getFavorite} from "~/utils/models/favorite.model";
+import {getFavorite} from "~/utils/models/favorite.model";
 
 //Our first step is going to be checking to see if the user has liked this coffeeshop
 //Step 1: Get logged in user profile id
@@ -13,9 +12,6 @@ import {type Favorite, getFavorite} from "~/utils/models/favorite.model";
 
 
 export async function loader({params, request}: Route.LoaderArgs) {
-    console.log(params)
-
-
     //     grab session information from cookie jar and parse it
     const cookie = request.headers.get('Cookie')
     const session = await getSession(cookie)
@@ -34,37 +30,52 @@ export async function loader({params, request}: Route.LoaderArgs) {
 export default function ShopPage({loaderData}: Route.ComponentProps) {
     const {shop, favorite} = loaderData
     const fetcher = useFetcher<{ favorite: boolean }>();
-    const liked = fetcher.data?.favorite ?? false;
 
     const toggleFavorite = (event: React.MouseEvent) => {
         event.preventDefault();
-        console.log('I made it here')
         fetcher.submit(null, { method: "post", action: `/shop/${shop.id}/favorite` }).catch((error) => {
             console.error(`Failed to toggle favorite for shop ${shop.id}:`, error);
         });
     };
 
-    const buttonText = favorite ? 'unfavorite' : 'favorite'
+    const isFavorite = favorite ?? false
+    const buttonText = isFavorite ? 'Unfavorite' : 'Favorite'
     return (
-        <>
-            <h1 className={"text-center m-4 text-5xl"}>Coffeeshop main page</h1>
+        <section className="bg-amber-50">
+            <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                    Coffee shop
+                </p>
 
-            <div className={'bg-slate-300 p-7 mt-20 flex flex-col md:flex-row lg:flex-col items-center gap-4'}>
-                <img src={shop.imageUrl} alt="coffee shop" className={'w-64 h-64 object-cover rounded-md border shadow-md mx-auto shrink-0'}/>
-                <div className={'bg-white p-6 sm:p-10 m-7 rounded-md shadow-md flex-1'}>
-                    <div
-                        className={'w-full flex flex-col md:flex-row items-start md:items-center justify-between gap-2'}>
-                        <ul className={'text-sm md:text-base lg:text-lg'}>
-                            <li>{shop.name}</li>
-                            <li>{shop.address}</li>
-                            {/*<li>{shop.hours}</li>*/}
-                        </ul>
-                        <button onClick={toggleFavorite} className={'bg-slate-300 px-4 py-2 rounded-md hover:bg-slate-400'}>
-                            {buttonText}
-                        </button>
+                <h1 className="mt-2 text-3xl font-bold text-gray-900 md:text-4xl">
+                    {shop.name}
+                </h1>
+
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
+                    <div className="flex flex-col gap-6 md:flex-row md:items-center">
+                        <img
+                            src={shop.imageUrl}
+                            alt={shop.name}
+                            className="h-64 w-64 shrink-0 rounded-xl border border-gray-200 object-cover"
+                        />
+
+                        <div className="flex-1">
+                            <p className="text-gray-600">{shop.address}</p>
+
+                            <button
+                                onClick={toggleFavorite}
+                                className={
+                                    isFavorite
+                                        ? "mt-6 rounded-lg border border-amber-700 px-6 py-3 font-semibold text-amber-700 hover:bg-amber-100"
+                                        : "mt-6 rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
+                                }
+                            >
+                                {buttonText}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </>
+        </section>
     )
 }

@@ -1,10 +1,8 @@
-import {Button, Card} from "flowbite-react";
 import {getSession} from "~/utils/session.server";
 import type {Route} from './+types/saved'
 import {redirect} from "react-router";
-import {getFavoriteShops, getFavoriteShopsByProfileId} from "~/utils/models/shop.model";
+import {getFavoriteShops} from "~/utils/models/shop.model";
 import {SavedShopCard} from "~/routes/saved/saved-shop-card";
-
 
 
 export async function loader({ request }:Route.LoaderArgs){
@@ -32,27 +30,32 @@ export async function loader({ request }:Route.LoaderArgs){
 export default function Saved({loaderData} : Route.ComponentProps) {
     //get coffeeshops info
     const {shops} = loaderData;
-    console.log(shops)
-
-    const dummyShops = [
-        {name: 'little bear', image: '/littlebear.png', tags: ['good lattes', 'close']},
-        {name: 'whispering bean', image: '/whisperbean.jpg', tags: ['nice people','good breakfast burritos']},
-        {name: "Jazzmine's drip", image: '/jazzmineshop.jpg', tags: ['kid friendly','convenient']},
-        {name: 'little bear', image: '/littlebear.png', tags: ['good lattes', 'close']},
-        {name: 'whispering bean', image: '/whisperbean.jpg', tags: ['nice people','good breakfast burritos']},
-        {name: "Jazzmine's drip", image: '/jazzmineshop.jpg', tags: ['kid friendly','convenient']},
-    ]
 
     return (
-        <>
-            <h1 className={"text-center m-4 text-5xl"}>Saved</h1>
-            {/*//Coffee shop card*/}
-            <div className={"grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2"}>
-                {shops.map((shop, index) =><SavedShopCard shop={shop} key={shop.id} />)}
+        <section className="bg-amber-50">
+            <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
+                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                    Your favorites
+                </p>
 
+                <h1 className="mt-2 text-3xl font-bold text-gray-900 md:text-4xl">
+                    Saved coffee shops
+                </h1>
 
+                <p className="mt-3 text-gray-600">
+                    Cafés you've saved to visit or return to.
+                </p>
 
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
+                    {shops.length === 0 ? (
+                        <p className="text-gray-500">No saved cafés yet.</p>
+                    ) : (
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {shops.map((shop) => <SavedShopCard shop={shop} key={shop.id} />)}
+                        </div>
+                    )}
+                </div>
             </div>
-        </>
+        </section>
     )
 }

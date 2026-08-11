@@ -8,7 +8,7 @@ export default [
         route('/search-page','routes/search-page.tsx'),
         route('/shop/:id','routes/shop-page.tsx'),
         route('/saved','routes/saved/saved.tsx'),
-        route('/experience-log','routes/experience-log.tsx'),
+        route('/experience-log/:visitId', 'routes/experience-log/experience-log.tsx'),
         route('/sign-up', 'routes/sign-up.tsx'),
         route('/sign-in','routes/sign-in.tsx'),
         route('/sign-out', 'routes/sign-out.ts'),
