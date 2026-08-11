@@ -39,6 +39,13 @@ export async function selectAllShops (): Promise<Shop[]> {
     return ShopSchema.array().parse(rowList)
 }
 
+export async function selectShopsBySearchTerm (term: string): Promise<Shop[]> {
+    // escape the ILIKE wildcards so a user typing % or _ searches for the literal character
+    const pattern = `%${term.replace(/[\\%_]/g, '\\$&')}%`
+    const rowList = await sql`SELECT id, address, hours, lat, lng, name, phone, image_url FROM shop WHERE name ILIKE ${pattern} OR address ILIKE ${pattern} ORDER BY name`
+    return ShopSchema.array().parse(rowList)
+}
+
 export async function selectShopsByFavoriteProfileId (id: string): Promise<Shop[]> {
     const rowList = await sql`SELECT id, address, hours, lat, lng, name, phone, image_url FROM shop inner join favorite on shop.id = favorite.shop_id where favorite.profile_id = ${id}`
     return ShopSchema.array().parse(rowList)
