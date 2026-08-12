@@ -16,7 +16,7 @@ export type Rating = z.infer<typeof RatingModel>
 // the `value` column is NUMERIC in Postgres; the driver returns numeric
 // columns as strings (to avoid float precision loss), so rows read back out
 // of the database need to be coerced before they satisfy RatingModel.
-const RatingRowModel = RatingModel.extend({
+export const RatingRowModel = RatingModel.extend({
     value: z.coerce.number().min(1).max(5)
 })
 

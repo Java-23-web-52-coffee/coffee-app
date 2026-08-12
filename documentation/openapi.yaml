@@ -366,8 +366,17 @@ paths:
   ###########################################################################
   /apis/profiles/me/visits:
     post:
-      summary: Log a visit
-      description: profileId is taken from the session, never the request body.
+      summary: Log a visit and its ratings
+      description: >-
+        profileId is taken from the session, never the request body.
+
+
+        A visit and the ratings collected for it are created together in one
+        transaction — there is no way to add a rating to an existing visit,
+        and a logged experience cannot be edited afterwards. Either the
+        visit row and every rating row commit, or nothing does: an invalid
+        `interestId` anywhere in the array leaves no visit behind. See
+        `documentation/experience-log-plan.md`.
       operationId: createVisit
       tags: [Visit]
       security:
@@ -380,15 +389,21 @@ paths:
             schema: { $ref: '#/components/schemas/VisitRequest' }
       responses:
         '201':
-          description: Visit logged.
+          description: Visit logged, with the ratings that were saved with it.
           headers:
             Location: { schema: { type: string } }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Visit' }
+              schema: { $ref: '#/components/schemas/LoggedVisit' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '404':
+          description: >-
+            No shop exists with that `shopId`, or one of the `interestId`
+            values does not exist. Nothing was written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
     get:
       summary: List the signed-in profile's visits
       operationId: listMyVisits
@@ -583,6 +598,12 @@ paths:
 
   ###########################################################################
   # Rating — association (visitId, interestId, value); scoped under its visit
+  #
+  # NOTE: ratings are normally created as part of POST /apis/profiles/me/visits,
+  # which writes a visit and its ratings in one transaction. The per-rating
+  # POST and PUT below have no caller in the frontend: a visit is never
+  # created without its ratings, and a logged experience cannot be edited.
+  # They remain mounted but unused — see documentation/experience-log-plan.md.
   ###########################################################################
   /apis/visits/{visitId}/ratings:
     post:
@@ -906,10 +927,35 @@ components:
 
     VisitRequest:
       type: object
-      required: [shopId]
-      description: Server owns id, profileId (from session), and createdAt.
+      required: [shopId, ratings]
+      description: >-
+        Server owns id, profileId (from session), and createdAt. The ratings
+        collected for the visit are part of the same request because a visit
+        and its ratings are written in one transaction — `ratings` carries
+        `RatingRequest` entries whose `visitId` is the visit being created.
       properties:
         shopId: { $ref: '#/components/schemas/Uuid' }
+        ratings:
+          type: array
+          minItems: 1
+          description: >-
+            At least one rating. A rater is not required to score every
+            interest — skipped interests are absent from the array, which the
+            tag and match aggregations already handle. Duplicate
+            `interestId` values are rejected: `rating`'s primary key is
+            (visit_id, interest_id).
+          items: { $ref: '#/components/schemas/RatingRequest' }
+
+    LoggedVisit:
+      allOf:
+        - $ref: '#/components/schemas/Visit'
+        - type: object
+          required: [ratings]
+          properties:
+            ratings:
+              type: array
+              description: The rating rows committed alongside this visit.
+              items: { $ref: '#/components/schemas/Rating' }
 
     # ------------------------------------------------------------------
     # Favorite — association; no surrogate id
