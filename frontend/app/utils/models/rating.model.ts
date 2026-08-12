@@ -1,6 +1,14 @@
 import { z } from 'zod/v4'
 import type { Status } from "~/utils/interfaces/Status";
 
+// NOTE: the schemas below are live — `visit.model.ts` composes them into the
+// transactional POST /apis/profiles/me/visits body. The fetch helpers
+// (`getRatings`, `postRating`, `postRatings`) are not: ratings now travel with
+// the visit that owns them, and a logged experience cannot be edited, so
+// there is nothing to prefill and no 409 to retry as a PUT. They are kept
+// against the per-rating endpoints still mounted on the backend; whether all
+// of it goes is an open question in documentation/experience-log-plan.md.
+
 // schema for validating a single rating — how well one interest applied to
 // a visit. visitId is never part of the request; it's server-owned from
 // the path (POST/GET/PUT /apis/visits/:visitId/ratings...).

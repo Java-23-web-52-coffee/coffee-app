@@ -11,7 +11,7 @@ import {signUpRoute} from "./apis/sign-up/sign-up.route.ts";
 import {signInRoute} from "./apis/sign-in/sign-in.route.ts";
 import {signOutRoute} from "./apis/sign-out/sign-out.route.ts";
 import {shopRoute} from "./apis/shop/shop.route.ts";
-import {visitRoute} from "./apis/visit/visit.route.ts";
+import {myVisitsRoute, visitRoute} from "./apis/visit/visit.route.ts";
 import {interestRoute} from "./apis/interest/interest.route.ts";
 import {favoritesRoute} from "./apis/favorites/favorites.route.ts";
 import {preferenceRoute} from "./apis/preferences/preference.route.ts";
@@ -58,10 +58,14 @@ export class App {
         this.app.use(signInRoute.basePath, signInRoute.router)
         this.app.use(signOutRoute.basePath, signOutRoute.router)
         this.app.use(shopRoute.basePath, shopRoute.router)
-        this.app.use(visitRoute.basePath, visitRoute.router)
+        this.app.use(myVisitsRoute.basePath, myVisitsRoute.router)
         this.app.use(interestRoute.basePath, interestRoute.router)
         this.app.use(favoritesRoute.basePath, favoritesRoute.router)
         this.app.use(preferenceRoute.basePath, preferenceRoute.router)
+        // visitRoute and ratingsRoute share /apis/visits; visit owns the
+        // single-segment /:id and ratings owns /:visitId/ratings, so the two
+        // never match the same URL
+        this.app.use(visitRoute.basePath, visitRoute.router)
         this.app.use(ratingsRoute.basePath, ratingsRoute.router)
         // shares /apis/shops with shopRoute — mounted after it so shop's own
         // routes match first; /:shopId/tags is two segments, so shop's /:id

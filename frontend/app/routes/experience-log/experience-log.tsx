@@ -1,18 +1,12 @@
 import { useState } from "react";
-import { Form, redirect, useActionData } from "react-router";
+import { Form, Link, redirect, useActionData } from "react-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { getValidatedFormData, useRemixForm } from "remix-hook-form";
 import { getAllInterest } from "~/utils/models/interest.model";
 import { getMyPreferences } from "~/utils/models/preference.model";
 import { getShopById } from "~/utils/models/shop.model";
-import { getVisitById } from "~/utils/models/visit.model";
-import {
-    getRatings,
-    postRatings,
-    RatingsFormSchema,
-    type RatingRequest,
-    type RatingsForm,
-} from "~/utils/models/rating.model";
+import { LogVisitFormSchema, postVisit, type LogVisitForm } from "~/utils/models/visit.model";
+import type { RatingRequest } from "~/utils/models/rating.model";
 import type { FormActionResponse } from "~/utils/interfaces/FormActionResponse";
 import { StatusMessage } from "~/components/StatusMessage";
 import { destroySession, getSession } from "~/utils/session.server";
@@ -20,7 +14,7 @@ import type { Route } from "./+types/experience-log";
 import type { Item } from "./experience-log.constants";
 import { RatingItemRow } from "./rating-item-row";
 
-const resolver = zodResolver(RatingsFormSchema);
+const resolver = zodResolver(LogVisitFormSchema);
 
 export async function loader({ request, params }: Route.LoaderArgs) {
     const cookie = request.headers.get("cookie");
@@ -33,39 +27,23 @@ export async function loader({ request, params }: Route.LoaderArgs) {
         return redirect("/sign-in");
     }
 
-    const visitId = params.visitId;
+    // The URL identifies the café, not a visit — the visit does not exist yet
+    // and is created when this form is submitted. See
+    // documentation/experience-log-plan.md.
+    const shop = await getShopById(params.shopId);
 
-    let visit;
-    try {
-        visit = await getVisitById(visitId);
-    } catch (error) {
-        const status = (error as { status?: number }).status;
-        if (status === 404) {
-            throw new Response("Visit not found", { status: 404 });
-        }
-        throw error;
-    }
-
-    if (visit.profileId !== profile.id) {
-        throw new Response("You may only rate your own visits", { status: 403 });
-    }
-
-    const shop = await getShopById(visit.shopId);
-
-    const [interestsResult, preferencesResult, ratingsResult] = await Promise.allSettled([
+    const [interestsResult, preferencesResult] = await Promise.allSettled([
         getAllInterest(),
         getMyPreferences(authorization, cookie),
-        getRatings(visitId, authorization, cookie),
     ]);
 
     if (interestsResult.status === "rejected") console.error(interestsResult.reason);
     if (preferencesResult.status === "rejected") console.error(preferencesResult.reason);
-    if (ratingsResult.status === "rejected") console.error(ratingsResult.reason);
 
-    const authFailed = [preferencesResult, ratingsResult].some(
-        (result) => result.status === "rejected" && (result.reason as { status?: number })?.status === 401,
-    );
-    if (authFailed) {
+    if (
+        preferencesResult.status === "rejected" &&
+        (preferencesResult.reason as { status?: number })?.status === 401
+    ) {
         return redirect("/sign-in", {
             headers: { "Set-Cookie": await destroySession(session) },
         });
@@ -73,18 +51,26 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 
     const interests = interestsResult.status === "fulfilled" ? interestsResult.value : [];
     const preferences = preferencesResult.status === "fulfilled" ? preferencesResult.value : [];
-    const ratings = ratingsResult.status === "fulfilled" ? ratingsResult.value : [];
 
-    // Only rate interests the profile already cares about, not the full
-    // global interest list.
-    const preferredInterestIds = new Set(preferences.map((preference) => preference.interestId));
-    const items: Item[] = interests.flatMap((interest) =>
-        interest.id && preferredInterestIds.has(interest.id)
-            ? [{ id: interest.id, label: interest.category }]
-            : [],
+    // Interest ids come back nullable from the schema; drop any that lack one
+    // since rating state and React keys are both keyed off item.id.
+    const allItems: Item[] = interests.flatMap((interest) =>
+        interest.id ? [{ id: interest.id, label: interest.category }] : [],
     );
 
-    return { shop, items, ratings };
+    // The form defaults to interests the profile already cares about. Rating
+    // every interest is opt-in — see decision 4 in the plan.
+    const preferredInterestIds = new Set(preferences.map((preference) => preference.interestId));
+    const items: Item[] = allItems.filter((item) => preferredInterestIds.has(item.id));
+
+    // An empty `items` means one of two unrelated things, and they need
+    // different copy: the profile has no preferences yet (send them to
+    // /preferences), or a fetch failed and we genuinely don't know (show an
+    // error, and never tell someone to set preferences they may already have).
+    const loadFailed =
+        interestsResult.status === "rejected" || preferencesResult.status === "rejected";
+
+    return { shop, items, allItems, loadFailed };
 }
 
 export async function action({ request, params }: Route.ActionArgs): Promise<FormActionResponse | Response> {
@@ -98,29 +84,24 @@ export async function action({ request, params }: Route.ActionArgs): Promise<For
         return redirect("/sign-in");
     }
 
-    const visitId = params.visitId;
-
-    const { errors, data, receivedValues: defaultValues } = await getValidatedFormData<RatingsForm>(request, resolver);
+    const { errors, data, receivedValues: defaultValues } = await getValidatedFormData<LogVisitForm>(request, resolver);
     if (errors) {
         return { errors, defaultValues };
     }
 
-    const status = await postRatings(visitId, data.ratings, authorization, cookie);
-    return { success: status.status === 200, status };
+    // One request, one transaction: the visit row and every rating row commit
+    // together, so there is no partial-save state to report here.
+    const status = await postVisit(params.shopId, data.ratings, authorization, cookie);
+    return { success: status.status === 201, status };
 }
 
 export default function ExperienceLog({ loaderData }: Route.ComponentProps) {
-    const { shop, items, ratings: savedRatings } = loaderData;
+    const { shop, items, allItems, loadFailed } = loaderData;
 
-    const [ratings, setRatings] = useState<Record<string, number | undefined>>(() => {
-        const initial: Record<string, number | undefined> = {};
-        for (const rating of savedRatings) {
-            initial[rating.interestId] = rating.value;
-        }
-        return initial;
-    });
+    const [ratings, setRatings] = useState<Record<string, number | undefined>>({});
+    const [rateAll, setRateAll] = useState(false);
 
-    const { handleSubmit, setValue } = useRemixForm<RatingsForm>({
+    const { handleSubmit, setValue } = useRemixForm<LogVisitForm>({
         mode: "onSubmit",
         resolver,
         defaultValues: { ratings: [] },
@@ -128,18 +109,24 @@ export default function ExperienceLog({ loaderData }: Route.ComponentProps) {
     const actionData = useActionData<typeof action>();
     const submitted = actionData !== undefined && "success" in actionData && actionData.success;
 
-    const allRated = items.length > 0 && items.every((item) => ratings[item.id]);
+    const visibleItems = rateAll ? allItems : items;
+    const hiddenCount = allItems.length - items.length;
+
+    // State is the source of truth, not the current view: collapsing back to
+    // the short form hides rows but never discards a score the user already
+    // gave. The button label carries the real count so nothing is submitted
+    // invisibly.
+    const ratedEntries: RatingRequest[] = allItems.flatMap((item) => {
+        const value = ratings[item.id];
+        return value ? [{ interestId: item.id, value }] : [];
+    });
 
     function selectValue(itemId: string, value: number) {
         setRatings((prev) => ({ ...prev, [itemId]: value }));
     }
 
     function handleFormSubmit(event: React.SubmitEvent<HTMLFormElement>) {
-        const entries: RatingRequest[] = items.flatMap((item) => {
-            const value = ratings[item.id];
-            return value ? [{ interestId: item.id, value }] : [];
-        });
-        setValue("ratings", entries);
+        setValue("ratings", ratedEntries);
         handleSubmit(event);
     }
 
@@ -163,25 +150,73 @@ export default function ExperienceLog({ loaderData }: Route.ComponentProps) {
 
                 <div className="flex-1 min-w-[340px] bg-white border border-[#ece6d6] rounded-[10px] p-7 flex flex-col justify-center">
                     {submitted ? (
-                        <div className="text-center py-5">
-                            <div className="text-lg font-semibold text-[#2b2b28] mb-4">Thanks for rating</div>
-                            {items.map((item) => (
+                        <div className="py-5">
+                            <div className="text-lg font-semibold text-[#2b2b28] mb-4 text-center">
+                                Experience logged
+                            </div>
+                            {ratedEntries.map((entry) => (
                                 <div
-                                    key={item.id}
+                                    key={entry.interestId}
                                     className="flex justify-between text-sm text-[#4a473f] py-2 border-t border-[#f0eee6]"
                                 >
-                                    <span>{item.label}</span>
-                                    <span className="font-semibold text-[#2b2b28]">{ratings[item.id]} / 5</span>
+                                    <span>{allItems.find((item) => item.id === entry.interestId)?.label}</span>
+                                    <span className="font-semibold text-[#2b2b28]">{entry.value} / 5</span>
                                 </div>
                             ))}
+                            <p className="mt-5 text-center text-xs text-[#6b675c]">
+                                Logged experiences can&rsquo;t be edited. Visiting again? Log it as a new
+                                experience.
+                            </p>
+                        </div>
+                    ) : loadFailed ? (
+                        <div className="py-5 text-center">
+                            <div className="text-lg font-semibold text-[#2b2b28] mb-2">
+                                We couldn&rsquo;t load this form
+                            </div>
+                            <p className="text-sm text-[#6b675c]">
+                                Something went wrong fetching the things you can rate. Please reload
+                                the page to try again.
+                            </p>
+                        </div>
+                    ) : allItems.length === 0 ? (
+                        <div className="py-5 text-center">
+                            <div className="text-lg font-semibold text-[#2b2b28] mb-2">
+                                Nothing to rate yet
+                            </div>
+                            <p className="text-sm text-[#6b675c]">
+                                There aren&rsquo;t any interests set up to rate a café against.
+                            </p>
+                        </div>
+                    ) : items.length === 0 && !rateAll ? (
+                        <div className="py-5 text-center">
+                            <div className="text-lg font-semibold text-[#2b2b28] mb-2">
+                                Set your preferences first
+                            </div>
+                            <p className="text-sm text-[#6b675c] mb-5">
+                                Tell us what matters to you and we&rsquo;ll ask how well{" "}
+                                {shop.name} delivered on it.
+                            </p>
+                            <Link
+                                to="/preferences"
+                                className="inline-block rounded-lg bg-amber-700 px-6 py-3 text-[15px] font-semibold text-white hover:bg-amber-800"
+                            >
+                                Choose your preferences
+                            </Link>
+                            <button
+                                type="button"
+                                onClick={() => setRateAll(true)}
+                                className="mt-4 block w-full text-sm font-semibold text-amber-700 hover:text-amber-900"
+                            >
+                                Or rate all {allItems.length} interests
+                            </button>
                         </div>
                     ) : (
                         <Form onSubmit={handleFormSubmit} noValidate method="POST">
                             <div className="text-xs font-semibold uppercase tracking-wide text-[#9c8a5f] mb-5">
-                                Rate relevance to your preferences
+                                How well did {shop.name} deliver?
                             </div>
 
-                            {items.map((item) => (
+                            {visibleItems.map((item) => (
                                 <RatingItemRow
                                     key={item.id}
                                     item={item}
@@ -190,17 +225,36 @@ export default function ExperienceLog({ loaderData }: Route.ComponentProps) {
                                 />
                             ))}
 
+                            {hiddenCount > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={() => setRateAll((prev) => !prev)}
+                                    className="mb-5 block w-full text-sm font-semibold text-amber-700 hover:text-amber-900"
+                                >
+                                    {rateAll
+                                        ? "Show only my preferences"
+                                        : `Rate all ${allItems.length} interests (${hiddenCount} more)`}
+                                </button>
+                            )}
+
                             <button
                                 type="submit"
-                                disabled={!allRated}
+                                disabled={ratedEntries.length === 0}
                                 className={`w-full h-12 rounded-lg border-none text-[15px] font-semibold transition-colors duration-150 ${
-                                    allRated
+                                    ratedEntries.length > 0
                                         ? "text-white bg-amber-700 hover:bg-amber-800 cursor-pointer"
                                         : "text-gray-400 bg-gray-100 cursor-not-allowed"
                                 }`}
                             >
-                                Submit ratings
+                                {ratedEntries.length === 0
+                                    ? "Rate at least one to log"
+                                    : `Log experience (${ratedEntries.length} rated)`}
                             </button>
+
+                            <p className="mt-3 text-center text-xs text-[#6b675c]">
+                                Rate as many or as few as you like. Once logged, this experience
+                                can&rsquo;t be edited.
+                            </p>
 
                             <StatusMessage actionData={actionData} />
                         </Form>
