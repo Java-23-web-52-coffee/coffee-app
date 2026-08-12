@@ -3,6 +3,8 @@ import type {Route} from "../../.react-router/types/app/routes/+types/shop-page"
 import {getSession} from "~/utils/session.server";
 import {redirect, useFetcher} from "react-router";
 import {getFavorite} from "~/utils/models/favorite.model";
+import {getShopTags, type ShopTag} from "~/utils/models/shop-tag.model";
+import {ShopTagChip} from "~/components/shop-tag-chip";
 
 //Our first step is going to be checking to see if the user has liked this coffeeshop
 //Step 1: Get logged in user profile id
@@ -23,12 +25,23 @@ export async function loader({params, request}: Route.LoaderArgs) {
     }
     const shop: Shop = await getShopById(params.id)
     const favorite = await getFavorite (params.id, profile.id)
-    return {shop, favorite}
+
+    // tags decorate the page rather than carry it, so a failed aggregation
+    // falls back to the same empty state a shop with no tags gets instead of
+    // taking the whole shop page down with it
+    let tags: ShopTag[] = []
+    try {
+        tags = await getShopTags(params.id)
+    } catch (error) {
+        console.error(`Failed to load tags for shop ${params.id}:`, error)
+    }
+
+    return {shop, favorite, tags}
 }
 
 
 export default function ShopPage({loaderData}: Route.ComponentProps) {
-    const {shop, favorite} = loaderData
+    const {shop, favorite, tags} = loaderData
     const fetcher = useFetcher<{ favorite: boolean }>();
 
     const toggleFavorite = (event: React.MouseEvent) => {
@@ -61,6 +74,26 @@ export default function ShopPage({loaderData}: Route.ComponentProps) {
 
                         <div className="flex-1">
                             <p className="text-gray-600">{shop.address}</p>
+
+                            <div className="mt-6">
+                                <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                                    Vibe
+                                </h2>
+
+                                {tags.length > 0
+                                    ? (
+                                        <ul className="mt-3 flex flex-wrap gap-2">
+                                            {tags.map((tag) => (
+                                                <ShopTagChip key={tag.interestId} tag={tag} />
+                                            ))}
+                                        </ul>
+                                    )
+                                    : (
+                                        <p className="mt-3 text-sm text-gray-600">
+                                            No tags yet — be one of the first to rate this café.
+                                        </p>
+                                    )}
+                            </div>
 
                             <button
                                 onClick={toggleFavorite}

@@ -16,6 +16,7 @@ import {interestRoute} from "./apis/interest/interest.route.ts";
 import {favoritesRoute} from "./apis/favorites/favorites.route.ts";
 import {preferenceRoute} from "./apis/preferences/preference.route.ts";
 import {ratingsRoute} from "./apis/ratings/ratings.route.ts";
+import {shopTagsRoute, tagsRoute} from "./apis/tags/tags.route.ts";
 
 export class App {
     app: Application
@@ -62,6 +63,11 @@ export class App {
         this.app.use(favoritesRoute.basePath, favoritesRoute.router)
         this.app.use(preferenceRoute.basePath, preferenceRoute.router)
         this.app.use(ratingsRoute.basePath, ratingsRoute.router)
+        // shares /apis/shops with shopRoute — mounted after it so shop's own
+        // routes match first; /:shopId/tags is two segments, so shop's /:id
+        // never swallows it
+        this.app.use(tagsRoute.basePath, tagsRoute.router)
+        this.app.use(shopTagsRoute.basePath, shopTagsRoute.router)
 
     }
 

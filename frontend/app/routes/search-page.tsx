@@ -1,17 +1,31 @@
 import {getAllShops, type Shop} from "~/utils/models/shop.model";
 import type { Route } from './+types/search-page';
 import {ShopCard} from "~/components/shop-card";
+import {getShopTagListings, groupTagsByShopId, type ShopTag} from "~/utils/models/shop-tag.model";
 import {Form, useNavigation} from "react-router";
 
 export async function loader({ request }: Route.LoaderArgs) {
     // the URL is the source of truth for the search, so the results are shareable and the back button works
     const searchTerm = new URL(request.url).searchParams.get('q')?.trim() ?? ''
     const shops: Shop[] = await getAllShops(searchTerm)
-    return {shops, searchTerm}
+
+    // one request for the whole grid rather than one per card. Tags decorate
+    // the results, so a failure here leaves plain cards instead of failing
+    // the search itself
+    let tagsByShopId: Record<string, ShopTag[]> = {}
+    try {
+        // shop.id is nullable on the schema, so ids are filtered rather than asserted
+        const shopIds = shops.flatMap((shop) => shop.id === null ? [] : [shop.id])
+        tagsByShopId = groupTagsByShopId(await getShopTagListings(shopIds))
+    } catch (error) {
+        console.error('Failed to load tags for search results:', error)
+    }
+
+    return {shops, searchTerm, tagsByShopId}
 }
 
 export default function SearchPage({ loaderData }: Route.ComponentProps) {
-    const { shops, searchTerm } = loaderData;
+    const { shops, searchTerm, tagsByShopId } = loaderData;
     const navigation = useNavigation()
     const isSearching = navigation.location !== undefined
         && new URLSearchParams(navigation.location.search).has('q')
@@ -70,7 +84,13 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                         </p>
                     ) : (
                         <div className={`mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 ${isSearching ? 'opacity-60' : ''}`}>
-                            {shops.map((shop) => <ShopCard shop={shop} key={shop.id}/>)}
+                            {shops.map((shop) => (
+                                <ShopCard
+                                    shop={shop}
+                                    tags={shop.id === null ? undefined : tagsByShopId[shop.id]}
+                                    key={shop.id}
+                                />
+                            ))}
                         </div>
                     )}
                 </div>

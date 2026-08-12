@@ -32,6 +32,7 @@ tags:
   - name: Preference
   - name: Rating
   - name: Match
+  - name: Tag
 
 paths:
   ###########################################################################
@@ -230,6 +231,99 @@ paths:
               schema: { $ref: '#/components/schemas/Shop' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  ###########################################################################
+  # Tag — computed, read-only; no table of its own (derived from
+  # visit + rating, aggregated per interest)
+  ###########################################################################
+  /apis/shops/{shopId}/tags:
+    get:
+      summary: List a shop's derived tags
+      description: >-
+        Tags are not stored. A shop earns a tag on an interest when the
+        average of its raters' scores for that interest is at least 4.0,
+        drawn from at least 3 distinct profiles.
+
+
+        Each rater contributes exactly one score per interest — their most
+        recent one. A rater who logs several visits does not count several
+        times. When a rater's most recent visit skipped an interest, their
+        earlier score for that interest still counts; only a newer score for
+        the same interest supersedes an older one.
+
+
+        Public: the response is aggregate data and identifies no profile, so
+        it carries no `security`, matching `listShops`.
+      operationId: listShopTags
+      tags: [Tag]
+      parameters:
+        - name: shopId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: >-
+            Qualifying tags, ordered by descending average score with ties
+            broken on category so the order is stable across requests. A shop
+            whose interests clear neither threshold returns an empty array,
+            not a 404 — the frontend renders its "no tags yet" state from an
+            empty array.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ShopTag' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /apis/shop-tags:
+    get:
+      summary: List derived tags for many shops at once
+      description: >-
+        The same aggregation as `listShopTags`, grouped by shop as well as
+        interest, so a page of search results costs one request instead of one
+        per card.
+
+
+        Deliberately not mounted at `/apis/shops/tags`: `getShopById` claims
+        the single-segment `/apis/shops/{id}`, so `tags` would be read as a
+        shop id and rejected as a malformed uuid.
+
+
+        Filtering by `shopId` is a filter, not a resource lookup — ids that
+        match no shop simply contribute no rows. Unlike `listShopTags` this
+        endpoint has no 404, because there is no single resource for it to be
+        about.
+      operationId: listShopTagsForShops
+      tags: [Tag]
+      parameters:
+        - name: shopId
+          in: query
+          required: false
+          description: >-
+            Repeatable. Narrows the result to these shops
+            (`?shopId=a&shopId=b`). Omit to get every shop that has at least
+            one qualifying tag.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 100
+            items: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: >-
+            Every qualifying tag for the requested shops, ordered by shop and
+            then by descending average score. A shop with no qualifying tags
+            contributes no rows at all rather than an empty group, so callers
+            should treat a missing shopId as "no tags".
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ShopTagListing' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   ###########################################################################
   # Interest — read-only reference data (the taxonomy preferences/ratings use)
@@ -873,3 +967,38 @@ components:
             matchScore:
               type: number
               description: Weighted Euclidean distance to the profile's preference vector. Lower is a closer match.
+
+    # ------------------------------------------------------------------
+    # ShopTag — computed; one qualifying interest for one shop. No table
+    # backs this: it is an aggregate over visit + rating, so a tag appears
+    # and disappears as people rate the shop.
+    # ------------------------------------------------------------------
+    ShopTag:
+      type: object
+      required: [interestId, category, ratingCount]
+      description: >-
+        The average score is deliberately absent. The chip displays the label
+        and the count; publishing a 4.4-vs-4.6 distinction invites
+        comparisons three raters cannot support. Ordering by that average is
+        the server's job.
+      properties:
+        interestId: { $ref: '#/components/schemas/Uuid' }
+        category:
+          type: string
+          description: The interest's label, carried through so the client renders a chip without a second call to /apis/interests.
+        ratingCount:
+          type: integer
+          minimum: 3
+          description: >-
+            Distinct profiles behind the tag, never the number of ratings —
+            a rater with four visits counts once. The minimum of 3 is the
+            support floor; anything below it is not a tag.
+
+    ShopTagListing:
+      description: A ShopTag carrying the shop it belongs to, for the multi-shop endpoint.
+      allOf:
+        - type: object
+          required: [shopId]
+          properties:
+            shopId: { $ref: '#/components/schemas/Uuid' }
+        - $ref: '#/components/schemas/ShopTag'
