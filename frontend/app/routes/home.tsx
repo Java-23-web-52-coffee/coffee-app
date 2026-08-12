@@ -1,3 +1,4 @@
+import { Link } from 'react-router';
 import type { Route } from './+types/home';
 
 
@@ -178,15 +179,22 @@ export default function Home() {
                 </p>
               </button>
 
-              <button className="rounded-2xl border border-gray-200 bg-white p-6 text-left shadow-sm hover:shadow-md">
+              {/* Logging a visit needs a café, and this page doesn't know which
+                  one — so the card routes through search rather than pretending
+                  to start the log. Private notes are not a feature; the copy no
+                  longer claims they are. */}
+              <Link
+                to="/search-page"
+                className="block rounded-2xl border border-gray-200 bg-white p-6 text-left shadow-sm hover:shadow-md"
+              >
                 <h3 className="text-lg font-bold text-gray-900">
                   Log a Visit
                 </h3>
 
                 <p className="mt-2 text-sm text-gray-600">
-                  Save private notes and ratings from a recent visit.
+                  Find the café you went to and rate how it went.
                 </p>
-              </button>
+              </Link>
 
               <button className="rounded-2xl border border-gray-200 bg-white p-6 text-left shadow-sm hover:shadow-md">
                 <h3 className="text-lg font-bold text-gray-900">

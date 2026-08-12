@@ -1,7 +1,7 @@
 import {getShopById, type Shop} from "~/utils/models/shop.model";
 import type {Route} from "../../.react-router/types/app/routes/+types/shop-page";
 import {getSession} from "~/utils/session.server";
-import {redirect, useFetcher} from "react-router";
+import {Link, redirect, useFetcher} from "react-router";
 import {getFavorite} from "~/utils/models/favorite.model";
 import {getShopTags, type ShopTag} from "~/utils/models/shop-tag.model";
 import {ShopTagChip} from "~/components/shop-tag-chip";
@@ -95,16 +95,29 @@ export default function ShopPage({loaderData}: Route.ComponentProps) {
                                     )}
                             </div>
 
-                            <button
-                                onClick={toggleFavorite}
-                                className={
-                                    isFavorite
-                                        ? "mt-6 rounded-lg border border-amber-700 px-6 py-3 font-semibold text-amber-700 hover:bg-amber-100"
-                                        : "mt-6 rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
-                                }
-                            >
-                                {buttonText}
-                            </button>
+                            <div className="mt-6 flex flex-wrap items-center gap-3">
+                                <button
+                                    onClick={toggleFavorite}
+                                    className={
+                                        isFavorite
+                                            ? "rounded-lg border border-amber-700 px-6 py-3 font-semibold text-amber-700 hover:bg-amber-100"
+                                            : "rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
+                                    }
+                                >
+                                    {buttonText}
+                                </button>
+
+                                {/* The only place in the app that already knows which café
+                                    you mean, so this is the entry point to logging a visit.
+                                    The visit itself is created when the log form is
+                                    submitted, not here. */}
+                                <Link
+                                    to={`/experience-log/${shop.id}`}
+                                    className="rounded-lg border border-amber-700 px-6 py-3 font-semibold text-amber-700 hover:bg-amber-100"
+                                >
+                                    Log a visit
+                                </Link>
+                            </div>
                         </div>
                     </div>
                 </div>
