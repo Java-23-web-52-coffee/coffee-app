@@ -2,18 +2,24 @@ import type {Request, Response} from 'express';
 import {
     selectShopById,
     insertShop,
-    selectAllShops,
-    selectShopsByFavoriteProfileId,
-    selectShopsBySearchTerm
+    selectShops,
+    selectShopsByFavoriteProfileId
 } from "./shop.model.ts";
 import {sendError, sendServerError, sendZodError} from "../../utils/response.utils.ts";
 import {type Shop, ShopSchema} from "./shop.model.ts";
+import {selectShopIdsWithAllTags} from "../tags/tags.model.ts";
 import {v7 as uuidv7} from 'uuid';
 import {z} from 'zod/v4'
 
-
-
-
+// Express hands back a bare string for one ?interestId= and an array for
+// several, so both shapes are normalised before validation — the same idiom
+// the shop-tags listing uses for its repeatable shopId
+const InterestIdQueryModel = z.union([
+    z.uuidv7('Please provide a valid uuid for interestId'),
+    z.uuidv7('Please provide a valid uuid for interestId').array().max(100)
+])
+    .optional()
+    .transform(value => value === undefined ? undefined : (Array.isArray(value) ? value : [value]))
 
 export async function getAllShopsController(request: Request, response: Response):Promise<void> {
     try {
@@ -30,10 +36,29 @@ export async function getAllShopsController(request: Request, response: Response
         }
         const searchTerm = validationResult.data
 
-        //run select all shops function, narrowing to the search term when one was supplied
-        const shops = searchTerm === undefined
-            ? await selectAllShops()
-            : await selectShopsBySearchTerm(searchTerm)
+        const interestResult = InterestIdQueryModel.safeParse(request.query.interestId)
+        if (!interestResult.success) {
+            sendZodError(request, response, interestResult.error)
+            return
+        }
+        const interestIds = interestResult.data
+
+        // with no tags selected the tag aggregation never runs, so the plain
+        // search costs exactly what it did before
+        const shopIds = interestIds === undefined
+            ? undefined
+            : await selectShopIdsWithAllTags(interestIds)
+
+        // no shop cleared every selected tag. This has to answer with an empty
+        // list rather than fall through, because an undefined restriction means
+        // "no filter" and would return every shop
+        if (shopIds !== undefined && shopIds.length === 0) {
+            response.json([])
+            return
+        }
+
+        //run the shop listing, narrowed by whichever filters were supplied
+        const shops = await selectShops(searchTerm, shopIds)
 
         //prepare response with shops from database
         response.json(shops)

@@ -84,7 +84,7 @@ export default function ShopPage({loaderData}: Route.ComponentProps) {
                                     ? (
                                         <ul className="mt-3 flex flex-wrap gap-2">
                                             {tags.map((tag) => (
-                                                <ShopTagChip key={tag.interestId} tag={tag} />
+                                                <ShopTagChip key={tag.interest.id} tag={tag} />
                                             ))}
                                         </ul>
                                     )

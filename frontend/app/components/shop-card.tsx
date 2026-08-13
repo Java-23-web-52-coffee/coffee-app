@@ -24,7 +24,7 @@ export function ShopCard({ shop, tags }: { shop: Shop, tags?: ShopTag[] }) {
                     {visibleTags.length > 0 && (
                         <ul className="mt-3 flex flex-wrap gap-1.5">
                             {visibleTags.map((tag) => (
-                                <ShopTagChip key={tag.interestId} tag={tag} size="sm" />
+                                <ShopTagChip key={tag.interest.id} tag={tag} size="sm" />
                             ))}
                         </ul>
                     )}

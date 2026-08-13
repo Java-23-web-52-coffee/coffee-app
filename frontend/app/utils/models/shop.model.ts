@@ -32,11 +32,13 @@ export const ShopSchema = z.object({
 
 export type Shop = z.infer<typeof ShopSchema>
 
-export async function getAllShops(searchTerm?: string): Promise<Shop[]> {
+export async function getAllShops(searchTerm?: string, interestIds?: string[]): Promise<Shop[]> {
     const url = new URL(`${process.env.REST_API_URL}/shops`)
     if(searchTerm) {
         url.searchParams.set('q', searchTerm)
     }
+    // repeatable, and ANDed by the server: a shop must carry every tag listed
+    interestIds?.forEach((interestId) => url.searchParams.append('interestId', interestId))
     const response = await fetch(url)
     if(!response.ok) throw new Error(`Failed to fetch shops: ${response.status} ${response.statusText}`)
     const data = await response.json()

@@ -1,14 +1,18 @@
 import {z} from "zod/v4";
+import {InterestSchema} from "~/utils/models/interest.model";
 
 // A tag is derived from visits and ratings rather than stored, so the shape
-// is deliberately small: a label to render and the number of people behind
-// it. The average that decides whether a tag qualifies (and what order the
-// tags arrive in) stays on the server.
+// is deliberately small: the interest it was earned on and the number of
+// people behind it. The average that decides whether a tag qualifies (and
+// what order the tags arrive in) stays on the server.
 export const ShopTagSchema = z.object({
-    interestId: z.uuidv7("Please provide a valid interest id"),
-    category: z.string("Please provide a valid category"),
+    // InterestSchema allows a null id for the insert path; a tag always came
+    // from an interest row that exists
+    interest: InterestSchema.extend({
+        id: z.uuidv7("Please provide a valid interest id")
+    }),
     // distinct profiles, not ratings — somebody with four visits counts once
-    ratingCount: z.coerce.number("Please provide a valid rating count").int()
+    count: z.coerce.number("Please provide a valid count").int()
 })
 
 export type ShopTag = z.infer<typeof ShopTagSchema>
@@ -69,4 +73,35 @@ export function groupTagsByShopId(listings: ShopTagListing[]): Record<string, Sh
         (grouped[shopId] ??= []).push(tag)
     }
     return grouped
+}
+
+export type TagFilterOption = {
+    interest: ShopTag['interest']
+    // how many shops carry this tag, so a chip can say "Quiet Atmosphere (4)"
+    shopCount: number
+}
+
+/**
+ * Collapse listings into the distinct interests worth offering as filters.
+ *
+ * The options have to come from tags shops actually earned rather than from
+ * the full interest list, or the UI would offer filters that can only ever
+ * return nothing.
+ *
+ * Alphabetical by category, so the chips do not reshuffle between requests the
+ * way the listings themselves do (those are ordered by score, per shop).
+ */
+export function collectFilterableTags(listings: ShopTagListing[]): TagFilterOption[] {
+    const byInterestId = new Map<string, TagFilterOption>()
+    for(const {interest} of listings) {
+        const existing = byInterestId.get(interest.id)
+        if(existing === undefined) {
+            byInterestId.set(interest.id, {interest, shopCount: 1})
+        } else {
+            // one row per (shop, interest), so every repeat is another shop
+            existing.shopCount += 1
+        }
+    }
+    return [...byInterestId.values()]
+        .sort((a, b) => a.interest.category.localeCompare(b.interest.category))
 }
