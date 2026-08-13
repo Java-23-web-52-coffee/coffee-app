@@ -34,15 +34,37 @@ export const ShopSchema = z.object({
 export type Shop = z.infer<typeof ShopSchema>
 
 
-export async function selectAllShops (): Promise<Shop[]> {
-    const rowList = await sql`SELECT id, address, hours, lat, lng, name, phone, image_url FROM shop`
-    return ShopSchema.array().parse(rowList)
-}
-
-export async function selectShopsBySearchTerm (term: string): Promise<Shop[]> {
+/**
+ * select shops, narrowed by any combination of the filters the listing accepts
+ *
+ * The filters compose rather than branch: each one contributes a fragment or
+ * nothing, so a term and an id restriction together is the same query as
+ * either alone. WHERE true is what lets every fragment start with AND.
+ *
+ * shopIds is deliberately not "the shops to look up" — it is a restriction
+ * computed elsewhere (today, the shops carrying every selected tag), which is
+ * why an empty array here would correctly return nothing.
+ *
+ * @param term case-insensitive substring of name or address, or undefined for no term filter
+ * @param shopIds restricts the result to these shops, or undefined for no restriction
+ * @returns the matching shops, by name
+ */
+export async function selectShops (term?: string, shopIds?: string[]): Promise<Shop[]> {
     // escape the ILIKE wildcards so a user typing % or _ searches for the literal character
-    const pattern = `%${term.replace(/[\\%_]/g, '\\$&')}%`
-    const rowList = await sql`SELECT id, address, hours, lat, lng, name, phone, image_url FROM shop WHERE name ILIKE ${pattern} OR address ILIKE ${pattern} ORDER BY name`
+    const pattern = term === undefined ? '' : `%${term.replace(/[\\%_]/g, '\\$&')}%`
+    const searchCondition = term === undefined
+        ? sql``
+        : sql`AND (name ILIKE ${pattern} OR address ILIKE ${pattern})`
+    const idCondition = shopIds === undefined
+        ? sql``
+        : sql`AND id = ANY(${shopIds})`
+
+    const rowList = await sql`
+        SELECT id, address, hours, lat, lng, name, phone, image_url
+        FROM shop
+        WHERE true ${searchCondition} ${idCondition}
+        ORDER BY name
+    `
     return ShopSchema.array().parse(rowList)
 }
 

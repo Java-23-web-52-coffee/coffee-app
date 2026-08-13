@@ -1,34 +1,50 @@
 import {getAllShops, type Shop} from "~/utils/models/shop.model";
 import type { Route } from './+types/search-page';
 import {ShopCard} from "~/components/shop-card";
-import {getShopTagListings, groupTagsByShopId, type ShopTag} from "~/utils/models/shop-tag.model";
-import {Form, useNavigation} from "react-router";
+import {
+    collectFilterableTags,
+    getShopTagListings,
+    groupTagsByShopId,
+    type ShopTag,
+    type TagFilterOption
+} from "~/utils/models/shop-tag.model";
+import {TagFilter} from "~/components/tag-filter";
+import {Form, Link, useNavigation} from "react-router";
 
 export async function loader({ request }: Route.LoaderArgs) {
     // the URL is the source of truth for the search, so the results are shareable and the back button works
-    const searchTerm = new URL(request.url).searchParams.get('q')?.trim() ?? ''
-    const shops: Shop[] = await getAllShops(searchTerm)
+    const url = new URL(request.url)
+    const searchTerm = url.searchParams.get('q')?.trim() ?? ''
+    // repeatable: the server returns shops carrying every tag listed
+    const selectedInterestIds = url.searchParams.getAll('interestId')
 
-    // one request for the whole grid rather than one per card. Tags decorate
-    // the results, so a failure here leaves plain cards instead of failing
-    // the search itself
+    const shops: Shop[] = await getAllShops(searchTerm, selectedInterestIds)
+
+    // one unscoped request feeds both jobs: the filter chips, and the tags on
+    // each card. Scoping it to the results would make the chip list shrink as
+    // you filter, stranding you with no way back. Tags decorate the results,
+    // so a failure here leaves plain cards instead of failing the search itself
     let tagsByShopId: Record<string, ShopTag[]> = {}
+    let filterOptions: TagFilterOption[] = []
     try {
-        // shop.id is nullable on the schema, so ids are filtered rather than asserted
-        const shopIds = shops.flatMap((shop) => shop.id === null ? [] : [shop.id])
-        tagsByShopId = groupTagsByShopId(await getShopTagListings(shopIds))
+        const listings = await getShopTagListings()
+        // keyed by shop, so listings for shops outside the results are simply never looked up
+        tagsByShopId = groupTagsByShopId(listings)
+        filterOptions = collectFilterableTags(listings)
     } catch (error) {
         console.error('Failed to load tags for search results:', error)
     }
 
-    return {shops, searchTerm, tagsByShopId}
+    return {shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId}
 }
 
 export default function SearchPage({ loaderData }: Route.ComponentProps) {
-    const { shops, searchTerm, tagsByShopId } = loaderData;
+    const { shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId } = loaderData;
     const navigation = useNavigation()
-    const isSearching = navigation.location !== undefined
-        && new URLSearchParams(navigation.location.search).has('q')
+    // any navigation back to this page is a search — testing for `q` would miss
+    // a submit that only changed the tag checkboxes
+    const isSearching = navigation.location?.pathname === '/search-page'
+    const hasFilters = selectedInterestIds.length > 0
 
     return (
         <section className="bg-amber-50">
@@ -46,9 +62,11 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                 </p>
 
                 <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
-                    <Form method="get" className="max-w-md">
+                    {/* one Form for both filters, so the term and the checked tags
+                        submit together and land in the same URL */}
+                    <Form method="get">
                         <label htmlFor="search" className="sr-only">Search</label>
-                        <div className="relative">
+                        <div className="relative max-w-md">
                             <div className="pointer-events-none absolute inset-y-0 flex items-center pl-3">
                                 <svg className="h-4 w-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                                      width="24" height="24" fill="none" viewBox="0 0 24 24">
@@ -74,13 +92,30 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                                 {isSearching ? 'Searching…' : 'Search'}
                             </button>
                         </div>
+
+                        <TagFilter options={filterOptions} selectedInterestIds={selectedInterestIds} />
+
+                        {hasFilters && (
+                            <p className="mt-4">
+                                {/* a link, not a reset button: it navigates to the
+                                    unfiltered URL, keeping the term the visitor typed */}
+                                <Link
+                                    to={searchTerm === '' ? '/search-page' : `/search-page?q=${encodeURIComponent(searchTerm)}`}
+                                    className="text-sm font-medium text-amber-800 underline hover:text-amber-900"
+                                >
+                                    Clear tag filters
+                                </Link>
+                            </p>
+                        )}
                     </Form>
 
                     {shops.length === 0 ? (
                         <p className="mt-8 text-gray-500">
-                            {searchTerm === ''
-                                ? 'No cafés found.'
-                                : `No cafés match “${searchTerm}”. Try a different name or location.`}
+                            {hasFilters
+                                ? `No cafés carry ${selectedInterestIds.length === 1 ? 'that tag' : 'all of those tags'}${searchTerm === '' ? '' : ` and match “${searchTerm}”`}. Try removing one.`
+                                : searchTerm === ''
+                                    ? 'No cafés found.'
+                                    : `No cafés match “${searchTerm}”. Try a different name or location.`}
                         </p>
                     ) : (
                         <div className={`mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 ${isSearching ? 'opacity-60' : ''}`}>
