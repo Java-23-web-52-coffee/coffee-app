@@ -15,5 +15,6 @@ export default [
         route("shop/:id/favorite", "routes/favorite.ts"),
         route('/preferences', 'routes/preferences/preferences.tsx'),
 
+
     ]),
 ] satisfies RouteConfig;

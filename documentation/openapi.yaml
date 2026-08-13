@@ -716,24 +716,43 @@ paths:
 
   ###########################################################################
   # Match — computed, read-only; no table of its own (derived from
-  # preference + rating, see documentation/matching-algorithm.md)
+  # preference + rating, see documentation/matching-api-plan.md)
   ###########################################################################
   /apis/profiles/me/matches:
     get:
-      summary: List shops ranked by nearest match to the signed-in profile's preferences
+      summary: List shops ranked by how well they match the signed-in profile's preferences
+      description: >-
+        `preference.importance` acts as a weight, never as a target: a "must"
+        pulls twice as hard as a "nice", and a shop is never penalised for
+        scoring higher than asked. `importance` 0 ("no") means "I don't care"
+        and drops out of the calculation entirely.
+
+
+        Each rater contributes one score per interest — their most recent —
+        so somebody who visits five times does not outvote five people who
+        visited once. Shops with no rating at all on any interest the profile
+        weighted are excluded rather than ranked on neutral defaults.
+
+
+        See `documentation/matching-api-plan.md`.
       operationId: listMyMatches
       tags: [Match]
       security:
         - sessionCookie: []
+          csrfToken: []
       parameters:
         - name: limit
           in: query
           required: false
-          description: Max number of matches to return.
+          description: Max number of matches to return. Out of range is a 400, not a clamp.
           schema: { type: integer, minimum: 1, maximum: 25, default: 5 }
       responses:
         '200':
-          description: Shops ranked by ascending matchScore (closer = better match). Empty array if the profile has no preferences yet or no shop has overlapping ratings.
+          description: >-
+            Shops ranked by descending matchScore (higher = better match), ties
+            broken on shop name for a stable order. Empty array if the profile
+            has no preferences yet, weighted every interest at 0, or no shop has
+            an overlapping rating.
           content:
             application/json:
               schema:
@@ -1008,11 +1027,45 @@ components:
       allOf:
         - $ref: '#/components/schemas/Shop'
         - type: object
-          required: [matchScore]
+          required: [matchScore, matchQuality, ratedInterestCount, preferenceCount]
+          description: >-
+            Clients are expected to render `matchQuality`, NOT `matchScore`.
+            Scores cluster in the 50-75 range by construction — an unrated
+            interest contributes the neutral midpoint, and only a shop averaging
+            a straight 5 on every weighted interest reaches 100 — so a bare 68
+            reads like a poor grade when it is in fact a strong match.
           properties:
             matchScore:
-              type: number
-              description: Weighted Euclidean distance to the profile's preference vector. Lower is a closer match.
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: >-
+                Weighted average of the shop's normalized ratings across the
+                interests the profile weighted. Higher is a closer match. This
+                is the ranking key; see the note above before displaying it.
+            matchQuality:
+              type: string
+              enum: [great, good, fair, weak, limited]
+              description: >-
+                The band `matchScore` falls into, and the field the UI renders.
+                Cutoffs are 75 / 60 / 50, chosen because they are the scores a
+                shop reaches by averaging roughly 4 / 3.5 / 3 stars on what the
+                profile cares about. `limited` overrides every other band when
+                too little of the profile's weighted preference mass has a real
+                rating behind it — a high score assembled out of neutral
+                defaults is not a judgment the data supports, so the UI says
+                "not enough ratings yet" rather than naming a quality.
+            ratedInterestCount:
+              type: integer
+              minimum: 0
+              description: How many of the profile's weighted interests this shop has a real rating for.
+            preferenceCount:
+              type: integer
+              minimum: 1
+              description: >-
+                How many interests the profile weighted above 0. With
+                ratedInterestCount this lets the client qualify a score —
+                "based on 2 of your 6 preferences".
 
     # ------------------------------------------------------------------
     # ShopTag — computed; one qualifying interest for one shop. No table
