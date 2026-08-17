@@ -34,6 +34,31 @@ export const ShopSchema = z.object({
 export type Shop = z.infer<typeof ShopSchema>
 
 
+// A shop as the listing returns it. distanceMiles is optional rather than
+// nullable because it is computed per request from the caller's position: a
+// search that sent no coordinates has nothing to report and omits the key.
+// Absent means "not asked for", never "zero miles away".
+export const ShopWithDistanceSchema = ShopSchema.extend({
+    distanceMiles: z.coerce.number().min(0).optional()
+})
+
+
+export type ShopWithDistance = z.infer<typeof ShopWithDistanceSchema>
+
+
+// The caller's position, supplied together or not at all — half a coordinate
+// pair locates nothing, so the controller rejects it before this is built.
+export interface Origin {
+    lat: number
+    lng: number
+}
+
+
+// The earth's mean radius in miles, so the haversine below comes out in miles
+// with no follow-up conversion.
+const EARTH_RADIUS_MILES = 3958.7613
+
+
 /**
  * select shops, narrowed by any combination of the filters the listing accepts
  *
@@ -45,11 +70,17 @@ export type Shop = z.infer<typeof ShopSchema>
  * computed elsewhere (today, the shops carrying every selected tag), which is
  * why an empty array here would correctly return nothing.
  *
+ * origin joins that pattern from the other side: it sorts without filtering.
+ * There is no radius, so locating the caller reorders the same shops rather
+ * than dropping any — which is what keeps it composable with the two filters
+ * above instead of fighting them for which one decides the result set.
+ *
  * @param term case-insensitive substring of name or address, or undefined for no term filter
  * @param shopIds restricts the result to these shops, or undefined for no restriction
- * @returns the matching shops, by name
+ * @param origin the caller's position, or undefined to order by name and omit distances
+ * @returns the matching shops — nearest first when located, by name otherwise
  */
-export async function selectShops (term?: string, shopIds?: string[]): Promise<Shop[]> {
+export async function selectShops (term?: string, shopIds?: string[], origin?: Origin): Promise<ShopWithDistance[]> {
     // escape the ILIKE wildcards so a user typing % or _ searches for the literal character
     const pattern = term === undefined ? '' : `%${term.replace(/[\\%_]/g, '\\$&')}%`
     const searchCondition = term === undefined
@@ -59,13 +90,35 @@ export async function selectShops (term?: string, shopIds?: string[]): Promise<S
         ? sql``
         : sql`AND id = ANY(${shopIds})`
 
+    // Haversine rather than PostGIS: no extension to install on the class
+    // database, and over a city the great-circle error is centimetres. At a
+    // few dozen shops the full scan is cheaper than any index would be, so
+    // there is nothing here to optimise yet.
+    // the ::float8 casts are load-bearing, not decoration: these arrive as bind
+    // parameters of unknown type, and Postgres would read the 2 in `2 * $n` as
+    // an integer and reject the radius' decimal point
+    const distanceColumn = origin === undefined
+        ? sql``
+        : sql`, 2 * ${EARTH_RADIUS_MILES}::float8 * asin(sqrt(
+                power(sin(radians(lat::float8 - ${origin.lat}::float8) / 2), 2)
+                + cos(radians(${origin.lat}::float8)) * cos(radians(lat::float8))
+                * power(sin(radians(lng::float8 - ${origin.lng}::float8) / 2), 2)
+            )) AS distance_miles`
+
+    // name is the tie-break, not just the fallback: two shops at an identical
+    // distance would otherwise come back in whatever order the scan produced,
+    // and an unstable order makes paging and screenshots disagree
+    const ordering = origin === undefined
+        ? sql`ORDER BY name`
+        : sql`ORDER BY distance_miles, name`
+
     const rowList = await sql`
-        SELECT id, address, hours, lat, lng, name, phone, image_url
+        SELECT id, address, hours, lat, lng, name, phone, image_url ${distanceColumn}
         FROM shop
         WHERE true ${searchCondition} ${idCondition}
-        ORDER BY name
+        ${ordering}
     `
-    return ShopSchema.array().parse(rowList)
+    return ShopWithDistanceSchema.array().parse(rowList)
 }
 
 export async function selectShopsByFavoriteProfileId (id: string): Promise<Shop[]> {
