@@ -30,13 +30,18 @@
 -- SHAPE OF THE DATA
 --
 --   6 profiles, each with a full 10-interest preference set
---   30 visits, arranged so every shop draws exactly 3 distinct raters
---   1 extra repeat visit (see below), for 31 total
---   310 ratings — every visit rates all ten interests
+--   75 visits, arranged so every shop draws exactly 3 distinct raters
+--   1 extra repeat visit (see below), for 76 total
+--   566 ratings — a visit rates only the interests we found evidence for
 --
--- Every visit rating every interest means coverage is 1.0 for any preference
--- set, so no shop reports the `limited` band. Three raters per shop is also
--- the tag threshold (TAG_MIN_RATERS), so shop tags light up for free.
+-- A visit does NOT rate all ten interests. The rating matrix in step 6 leaves a
+-- cell NULL when no public evidence supports a score, and NULLs produce no
+-- rating rows, so 186 of the 250 (shop, interest) pairs are rated and 64 are
+-- genuinely unknown. That is what makes coverage vary and the `limited` band
+-- reachable — see WHAT THE REAL DATA CHANGED below.
+--
+-- Three distinct raters per rated pair is still the tag threshold
+-- (TAG_MIN_RATERS), so shop tags light up for free on anything that IS rated.
 --
 -- The repeat visit is deliberate: Rosa visits Michael Thomas twice, rating it
 -- poorly 40 days ago and well 3 days ago. The DISTINCT ON collapsing in
@@ -64,37 +69,98 @@
 -- arithmetic, so a mismatch is a bug in the query rather than a typo here.
 --
 --   Rosa Delgado (remote worker)        Tom Whitaker (dog walker)
---     1. Sukoon              84 great     1. Humble             83 great
---     2. Zendo               80 great     2. Trifecta           75 great
---     3. Michael Thomas      69 good      3. Little Bear        68 good
+--     1. Sukoon              83 great     1. Bike In            88 great
+--     2. Humble              81 great     2. Michael Thomas     87 great
+--     3. Michael Thomas      71 good      3. Zendo              83 great
 --    ...                                 ...
---    10. Cutbow              41 weak     10. Sukoon             29 weak
+--    25. Red Rock         35 limited     25. Red Rock           26 weak
 --
 --   Imani Brooks (plant-based)          Diego Salas (student)
---     1. Java Joe's          81 great     1. Sukoon             87 great
---     2. Little Bear         63 good      2. Zendo              82 great
---     3. Trifecta            63 good      3. Michael Thomas     75 great
+--     1. Café Lush           85 great     1. Sukoon             89 great
+--     2. Rust Is Gold        80 great     2. Humble             80 great
+--     3. Java Joe's          80 great     3. Sueños             75 great
 --    ...                                 ...
---    10. Cutbow              29 weak     10. Java Joe's         44 weak
+--    25. Red Rock         33 limited     25. Red Rock        33 limited
 --
 --   Nina Okafor (social)                Wes Lindgren (generalist control)
---     1. Little Bear         85 great     1. Trifecta           65 good
---     2. Trifecta            71 good      2. Zendo              64 good
---     3. Humble              65 good      3. Little Bear        64 good
+--     1. Sukoon              85 great     1. Humble             76 great
+--     2. Sueños              81 great     2. Sukoon             76 great
+--     3. Bike In             79 great     3. Little Bear        75 great
 --    ...                                 ...
---    10. Villa Myriam        40 weak     10. Cutbow             41 weak
+--    25. Red Rock            8 weak      25. Red Rock        31 limited
 --
--- Two things to check beyond the raw numbers:
 --
---   Every persona has a DIFFERENT shop at #1. If two personas return the same
---   ordering, the preference weights are not reaching the score.
+-- WHAT THE REAL DATA CHANGED — read this before trusting the ranking
 --
---   Every shop reports coverage 1.00 and nothing reports `limited`. A
---   `limited` band means the visit or rating rows did not all land.
+-- The invented matrix this replaced was tuned so every persona had a different
+-- #1. That property is GONE, and its absence is the most useful thing in this
+-- file:
 --
--- Wes is the control: weighting everything at 0.5 makes his ranking a plain
--- "best overall" list with no persona tilt, and his spread is correspondingly
--- narrow (65 down to 41, versus Diego's 87 down to 44).
+--   Sukoon is #1 for THREE of six personas (Rosa, Diego, Nina). Tom gets Bike
+--   In, Imani gets Café Lush, Wes gets Humble. Four distinct winners across
+--   six personas, not six.
+--
+-- The cause is EVIDENCE DENSITY. Three explanations were tested against the
+-- database before landing on it; do not re-run these experiments:
+--
+--   NOT the 0.5 default on its own. Substituting each interest's observed mean
+--   (0.65-0.84 depending on interest) for the flat 0.5 leaves the orderings
+--   almost unchanged and the distinct-#1 count identical.
+--
+--   NOT persona overlap. Rosa and Diego originally weighted the same four
+--   interests, which looked like the obvious culprit. They were rewritten to
+--   share only two — and STILL returned the same top three in the same order.
+--   The rewrite was kept because two identical personas is a bad fixture
+--   regardless, but on its own it did not move the ranking.
+--
+--   IT IS COVERAGE. A second research pass targeting only the sparsest shops
+--   lifted the table from 152 to 186 rated cells, and that is what finally
+--   moved things: distinct winners went 3 -> 4, Wes flipped from Sukoon to
+--   Humble, Tom went from ranking 23 shops to all 25, and the number of shops
+--   reporting `limited` collapsed (Nina and Tom now have none at all).
+--
+-- The mechanism is arithmetic. Every unrated interest contributes 0.5 where a
+-- documented strength contributes up to 1.0, so a shop known on 4 of 10
+-- interests cannot out-score one known on 8 no matter how good it is. Before
+-- the second pass, four cafés sat at 4-5 rated interests and were effectively
+-- disqualified from every ranking regardless of quality.
+--
+-- Treat the residual concentration as a finding about the product, not a defect
+-- in this fixture. The ranking is still partly measuring how well a café is
+-- written about, because scraped public evidence covers the same popular cafés
+-- most thoroughly. Real users rating real shops is what evens that out; more
+-- scraping has diminishing returns, as the 5/25 on Accessible Outlets shows.
+--
+-- Other things worth checking:
+--
+--   `limited` is REACHABLE but no longer everywhere — 0 to 6 shops per persona
+--   report it (Nina and Tom have none, Diego and Imani have 6). Rosa's worst
+--   coverage is 0.18. Before NULLs existed, coverage was 1.00 everywhere and
+--   the band was dead code. If NOTHING reports `limited` for any persona, the
+--   NULLs in the matrix are not being honoured.
+--
+--   Every persona now ranks all 25 shops. Tom used to rank only 23 — two
+--   shops carried no rating on ANY interest he weights, so
+--   selectMatchesForProfile excluded them outright. Filling their Dog Friendly
+--   and Alt Drinks cells fixed that. The exclusion path is still real and still
+--   correct; it just no longer triggers on this data.
+--
+--   Red Rock lands last for everyone, but the BAND it reports now varies by
+--   persona: `weak` for Nina (8) and Tom (26), `limited` for the other four.
+--   That is the distinction working. It is a wholesale roaster that says itself
+--   there is "no sitting down", so for personas whose interests it can be
+--   judged against it earns a genuine bad verdict, and for the rest there is
+--   not enough to judge.
+--
+--   Scores did NOT compress the way grounding usually threatens. The spread
+--   runs 8-89 across personas. The bands still separate shops.
+--
+-- Wes is NOT a flat 0.5 across the board, and assuming he is will produce
+-- wrong numbers. The preferences form makes every profile crown exactly one
+-- tie-break winner at 1.0, and step 2 gives Wes Comfortable Seating. Any
+-- offline recalculation of this table has to carry that 1.0 or it will
+-- disagree with the database — which is how this row was once got wrong.
+-- Regenerate against the database, never from the matrix alone.
 --
 --
 -- WHAT THE SCHEMA DEMANDS
@@ -145,8 +211,8 @@ BEGIN
         SELECT 1 FROM interest WHERE lower(interest.category) = lower(wanted.category)
     );
 
-    IF shop_count <> 10 THEN
-        RAISE EXCEPTION 'Expected the 10 shops from seed-shops-abq.sql; found %. Run that first.', shop_count;
+    IF shop_count <> 25 THEN
+        RAISE EXCEPTION 'Expected the 25 shops from seed-shops-abq.sql; found %. Run that first.', shop_count;
     END IF;
     IF missing_interests IS NOT NULL THEN
         RAISE EXCEPTION 'Missing interest categories: %. Run sql/seed-interests.sql first.', missing_interests;
@@ -186,10 +252,14 @@ ON CONFLICT DO NOTHING;
 -- only lets you crown a single tie-break winner; everything else marked "must"
 -- comes through as 0.8.
 --
---   Rosa    remote worker   wifi above all, then outlets and quiet
+--   Rosa    remote worker   wifi above all, then outlets, drinks and food
 --   Tom     dog walker      dogs, then a patio to sit on
 --   Imani   plant-based     vegan first, gluten free and food close behind
---   Diego   student         quiet above all, then outlets and seating
+--   Diego   student         quiet above all, then seating, outlets and food
+--
+--   Rosa and Diego deliberately do NOT overlap on wifi or quiet. They used to
+--   weight the same four interests and always returned the same shop; see the
+--   note in step 2.
 --   Nina    social          drinks beyond coffee, seating, patio
 --   Wes     generalist      mildly interested in everything
 --
@@ -198,11 +268,17 @@ ON CONFLICT DO NOTHING;
 INSERT INTO preference (profile_id, interest_id, importance)
 SELECT w.profile_id, interest.id, w.importance
 FROM (VALUES
-    -- Rosa, remote worker
+    -- Rosa, remote worker: connectivity and power, and she wants a drink she
+    -- likes while she is parked there. NOT a library — that is Diego's job.
+    --
+    -- Rosa and Diego used to weight the SAME four interests (WiFi, Outlets,
+    -- Quiet, Seating) with only the order changed, which made them the same
+    -- persona twice and meant they always returned the same shop. If you edit
+    -- either one, keep their sets genuinely different or the fixture stops
+    -- demonstrating that preferences matter at all.
     ('01900000-0000-7000-8000-000000006001'::uuid, 'Strong WiFi',             1.0),
     ('01900000-0000-7000-8000-000000006001'::uuid, 'Accessible Outlets',      0.8),
-    ('01900000-0000-7000-8000-000000006001'::uuid, 'Quiet Atmosphere',        0.8),
-    ('01900000-0000-7000-8000-000000006001'::uuid, 'Comfortable Seating',     0.5),
+    ('01900000-0000-7000-8000-000000006001'::uuid, 'Alternate Drink Options', 0.5),
     ('01900000-0000-7000-8000-000000006001'::uuid, 'Food Options',            0.5),
 
     -- Tom, dog walker
@@ -216,11 +292,14 @@ FROM (VALUES
     ('01900000-0000-7000-8000-000000006003'::uuid, 'Food Options',            0.8),
     ('01900000-0000-7000-8000-000000006003'::uuid, 'Alternate Drink Options', 0.5),
 
-    -- Diego, student
+    -- Diego, student: silence, somewhere to sit for four hours, and something
+    -- to eat without leaving. WiFi is dropped entirely — he reads and writes
+    -- rather than streams, and it is the interest Rosa cares most about, so
+    -- leaving it out is what keeps these two personas distinct.
     ('01900000-0000-7000-8000-000000006004'::uuid, 'Quiet Atmosphere',        1.0),
-    ('01900000-0000-7000-8000-000000006004'::uuid, 'Accessible Outlets',      0.8),
     ('01900000-0000-7000-8000-000000006004'::uuid, 'Comfortable Seating',     0.8),
-    ('01900000-0000-7000-8000-000000006004'::uuid, 'Strong WiFi',             0.5),
+    ('01900000-0000-7000-8000-000000006004'::uuid, 'Accessible Outlets',      0.8),
+    ('01900000-0000-7000-8000-000000006004'::uuid, 'Food Options',            0.5),
 
     -- Nina, social
     ('01900000-0000-7000-8000-000000006005'::uuid, 'Alternate Drink Options', 1.0),
@@ -271,8 +350,9 @@ ON CONFLICT DO NOTHING;
 -- 4. The visits.
 --
 -- Raters are rotated across shops so each shop collects exactly three distinct
--- profiles. Profiles end up with 4 to 6 visits each rather than a forced even
--- split, which is closer to how real usage looks.
+-- profiles. With 25 shops and 6 raters the rotation gives each profile 12 to 14
+-- visits (Rosa has 14 — 13 plus her repeat), which is closer to how real usage
+-- looks than a forced even split.
 --
 -- days_ago spreads the visits out and, more importantly, makes Rosa's repeat
 -- visit to shop 1 unambiguously the newest thing she has said about that shop.
@@ -336,6 +416,69 @@ FROM (VALUES
     ('01900000-0000-7000-8000-000000007102',   10,   5,   16),
     ('01900000-0000-7000-8000-000000007103',   10,   6,    3),
 
+    -- Shops 11-25. The rotation continues by the same rule: the first rater is
+    -- ((shop_n - 1) mod 6) + 1, then the next two wrapping at 6. days_ago runs
+    -- 41-90 so this batch does not collide with the spread above.
+    ('01900000-0000-7000-8000-000000007111',   11,   5,   90),
+    ('01900000-0000-7000-8000-000000007112',   11,   6,   74),
+    ('01900000-0000-7000-8000-000000007113',   11,   1,   58),
+
+    ('01900000-0000-7000-8000-000000007121',   12,   6,   89),
+    ('01900000-0000-7000-8000-000000007122',   12,   1,   73),
+    ('01900000-0000-7000-8000-000000007123',   12,   2,   57),
+
+    ('01900000-0000-7000-8000-000000007131',   13,   1,   88),
+    ('01900000-0000-7000-8000-000000007132',   13,   2,   72),
+    ('01900000-0000-7000-8000-000000007133',   13,   3,   56),
+
+    ('01900000-0000-7000-8000-000000007141',   14,   2,   87),
+    ('01900000-0000-7000-8000-000000007142',   14,   3,   71),
+    ('01900000-0000-7000-8000-000000007143',   14,   4,   55),
+
+    ('01900000-0000-7000-8000-000000007151',   15,   3,   86),
+    ('01900000-0000-7000-8000-000000007152',   15,   4,   70),
+    ('01900000-0000-7000-8000-000000007153',   15,   5,   54),
+
+    ('01900000-0000-7000-8000-000000007161',   16,   4,   85),
+    ('01900000-0000-7000-8000-000000007162',   16,   5,   69),
+    ('01900000-0000-7000-8000-000000007163',   16,   6,   53),
+
+    ('01900000-0000-7000-8000-000000007171',   17,   5,   84),
+    ('01900000-0000-7000-8000-000000007172',   17,   6,   68),
+    ('01900000-0000-7000-8000-000000007173',   17,   1,   52),
+
+    ('01900000-0000-7000-8000-000000007181',   18,   6,   83),
+    ('01900000-0000-7000-8000-000000007182',   18,   1,   67),
+    ('01900000-0000-7000-8000-000000007183',   18,   2,   51),
+
+    ('01900000-0000-7000-8000-000000007191',   19,   1,   82),
+    ('01900000-0000-7000-8000-000000007192',   19,   2,   66),
+    ('01900000-0000-7000-8000-000000007193',   19,   3,   50),
+
+    ('01900000-0000-7000-8000-000000007201',   20,   2,   81),
+    ('01900000-0000-7000-8000-000000007202',   20,   3,   65),
+    ('01900000-0000-7000-8000-000000007203',   20,   4,   49),
+
+    ('01900000-0000-7000-8000-000000007211',   21,   3,   80),
+    ('01900000-0000-7000-8000-000000007212',   21,   4,   64),
+    ('01900000-0000-7000-8000-000000007213',   21,   5,   48),
+
+    ('01900000-0000-7000-8000-000000007221',   22,   4,   79),
+    ('01900000-0000-7000-8000-000000007222',   22,   5,   63),
+    ('01900000-0000-7000-8000-000000007223',   22,   6,   47),
+
+    ('01900000-0000-7000-8000-000000007231',   23,   5,   78),
+    ('01900000-0000-7000-8000-000000007232',   23,   6,   62),
+    ('01900000-0000-7000-8000-000000007233',   23,   1,   46),
+
+    ('01900000-0000-7000-8000-000000007241',   24,   6,   77),
+    ('01900000-0000-7000-8000-000000007242',   24,   1,   61),
+    ('01900000-0000-7000-8000-000000007243',   24,   2,   45),
+
+    ('01900000-0000-7000-8000-000000007251',   25,   1,   76),
+    ('01900000-0000-7000-8000-000000007252',   25,   2,   60),
+    ('01900000-0000-7000-8000-000000007253',   25,   3,   44),
+
     -- The repeat. Rosa came back to shop 1 and liked it much better this time.
     -- Her 40-days-ago visit above must be ignored by the DISTINCT ON; if it is
     -- not, shop 1's averages come out low and her ranking is wrong.
@@ -345,34 +488,162 @@ ON CONFLICT DO NOTHING;
 
 
 -- --------------------------------------------------------------------------
--- 6. The ratings — 10 per visit.
+-- 6. The ratings — up to 10 per visit.
 --
--- THE SHOP PERSONALITY MATRIX. One row per shop, one column per interest,
--- each a target 1-5 average. Everything about which shop wins which persona
--- is decided here.
+-- THE SHOP RATING MATRIX, grounded in public evidence on 2026-08-17.
+--
+-- One row per shop, one column per interest, each a target 1-5 average — or
+-- NULL, meaning NO EVIDENCE WAS FOUND and the shop is deliberately left
+-- unrated for that interest. NULL is not a low score. It is the absence of a
+-- claim, and it is what makes coverage — and therefore the `limited` band —
+-- mean something instead of always being 1.00.
 --
 -- Read the columns as: Dog / Quiet / WiFi / Vegan / GlutenFree / Food /
 -- Outlets / Seating / Patio / AltDrinks.
 --
--- Targets of 4 or 5 are the shop's signature strengths and clear the tag
--- threshold. Everything at 3 or below stays quiet.
+-- HOW EACH NUMBER WAS CHOSEN
+--
+--   5     repeatedly cited as a standout, or tagged yes with emphasis
+--   4     clearly present and positively mentioned
+--   3     present but unremarkable, or the sources conflict
+--   2     mentioned as lacking
+--   1     explicitly absent, or tagged `no`
+--   NULL  no evidence found — leave unrated
+--
+-- SOURCES, strongest first
+--
+--   1. OpenStreetMap via the Overpass API, for `internet_access` and
+--      `outdoor_seating`. Structured and unambiguous. A MISSING tag is not
+--      evidence of absence — only an explicit `no` is, which is why a shop can
+--      have no OSM wifi tag and still score on review evidence.
+--   2. Diet directories: HappyCow (vegan), findmeglutenfree / Atly (gluten
+--      free), BringFido (dogs).
+--   3. Review prose from search summaries, plus each shop's own menu.
+--
+-- Yelp and Google attribute panels are NOT sources here. Both return HTTP 403
+-- to automated fetches, so nothing in this table came from either.
+--
+-- WHAT THE EVIDENCE COULD NOT COVER — read this before trusting a ranking
+--
+-- 186 of the 250 cells got real evidence, after a second research pass that
+-- deliberately targeted the sparsest shops rather than re-confirming what was
+-- already known. These counts are Verification 4's output, not an estimate:
+--
+--   Comfortable Seating 25/25
+--   Food Options        25/25   everybody publishes a menu
+--   Outdoor Patio       25/25
+--   Alt Drinks          23/25
+--   Dog Friendly        19/25
+--   Quiet Atmosphere    18/25
+--   Strong WiFi         18/25
+--   Vegan               17/25
+--   Gluten Free         11/25
+--   Accessible Outlets   5/25   <-- almost nobody writes down where the plugs are
+--
+-- The first pass reached 152/250 and left four shops at 4-5 rated interests
+-- (Amalie, Plata, The Well, Sueños), which distorted the ranking — see WHAT THE
+-- REAL DATA CHANGED. The second pass lifted the floor: the sparsest shop that
+-- is actually a cafe now sits at 5/10, and only Red Rock (a wholesale roaster
+-- with no cafe at all) is lower at 4/10.
+--
+-- Accessible Outlets is the finding worth acting on. Rosa and Diego both weight
+-- it 0.8, and it is documented for four shops. A preference users can express
+-- but the world does not record cannot influence a ranking, no matter how the
+-- scoring treats it. That is a problem with the interest list, not the matcher.
 --
 -- The roster is read back out of the `visit` table rather than repeated: step 4
 -- committed those rows earlier in this transaction, and the rater slot is the
 -- last character of the visit id.
 -- --------------------------------------------------------------------------
 WITH matrix (shop_n, shop_label, dog, quiet, wifi, vegan, gf, food, outlets, seating, patio, alt) AS (VALUES
-    --                                    dog qt wf vg gf fd ou se pa al
-    ( 1, 'Michael Thomas  roaster',         2, 4, 3, 2, 2, 2, 3, 3, 2, 3),
-    ( 2, 'Cutbow          quiet craft',     2, 5, 2, 2, 2, 1, 2, 3, 3, 4),
-    ( 3, 'Zendo           work-friendly',   3, 4, 5, 4, 3, 3, 5, 4, 2, 3),
-    ( 4, 'Little Bear     social',          3, 2, 3, 3, 3, 4, 3, 5, 4, 5),
-    ( 5, 'Humble          dogs and patio',  5, 3, 3, 3, 3, 4, 2, 3, 5, 3),
-    ( 6, 'Java Joes       kitchen',         3, 3, 3, 5, 5, 5, 2, 3, 3, 2),
-    ( 7, 'Villa Myriam    roastery',        2, 4, 4, 2, 2, 2, 4, 3, 2, 3),
-    ( 8, 'Amalie          open late',       2, 3, 4, 4, 3, 3, 4, 4, 3, 4),
-    ( 9, 'Sukoon          study spot',      1, 5, 5, 3, 2, 3, 5, 4, 2, 4),
-    (10, 'Trifecta        north valley',    4, 3, 3, 3, 4, 4, 3, 4, 5, 3)
+    -- Row 1's NULLs carry an explicit ::integer so the VALUES column types are
+    -- never in doubt; later rows can then use a bare NULL.
+    --                                     dog   qt   wf   vg   gf   fd   ou   se   pa   al
+
+    -- OSM wlan + patio. Reviews: dog-friendly patio with a fountain, calm and
+    -- good for working, macadamia/oat/soy milk. No outlet or GF evidence.
+    ( 1, 'Michael Thomas  Nob Hill',           4,   4,   4,   3, NULL::integer,
+                                                                     3, NULL::integer,
+                                                                               4,   4,   3),
+    -- OSM wlan + patio. Reviews: pastries consistently praised, seating inside
+    -- and out, free wifi. Dog policy unknown; no vegan/GF/alt evidence.
+    ( 2, 'Cutbow          roastology',         4,   3,   4,   3,NULL,   4,NULL,   4,   4,   4),
+    -- OSM wlan + patio. HappyCow: vegan donuts and pastries, oat milk with no
+    -- upcharge, GF options. Covered patio is dog friendly, shared with a
+    -- brewery. Quiet only claimed of the back patio, so 3 not 4.
+    ( 3, 'Zendo           downtown art',       5,   3,   4,   5,   4,   4,NULL,   4,   5,   4),
+    -- OSM wlan + patio. Reviews: ample seating and cozy furniture, dog-friendly
+    -- patio with cushioned benches, vegan pastries and GF options.
+    ( 4, 'Little Bear     specialty',          5,NULL,   4,   4,   4,   4,NULL,   5,   4,   4),
+    -- OSM wlan + patio. Reviews explicitly: "comfortable chairs with outlets",
+    -- "plenty of seats inside and outside", covered patio, quiet with a book.
+    ( 5, 'Humble          Lomas',              5,   4,   5,   3,NULL,   3,   5,   5,   4,   4),
+    -- OSM wlan + patio. Big kitchen: burritos, waffles, GF crepes, caters to
+    -- vegan and gluten sensitivities. Live music, so NOT a quiet room.
+    ( 6, 'Java Joes       kitchen',         NULL,   2,   4,   4,   5,   5,NULL,   4,   4,   3),
+    -- OSM patio, no wifi tag and reviews do not confirm it. Quiet and good for
+    -- working; dogs allowed; seating mixed (high tops called uncomfortable).
+    ( 7, 'Villa Myriam    roastery',           4,   4,   4,NULL,NULL,   4,NULL,   3,   4,   3),
+    -- No OSM entry. Cozy lounge seating repeatedly cited; celebrated pistachio
+    -- latte and creative specialty drinks. Open to 11pm.
+    ( 8, 'Amalie          open late',          4,NULL,NULL,NULL,NULL,   3,NULL,   5,   4,   5),
+    -- OSM wlan + patio. Reviews explicitly: "plenty of seating and outlets",
+    -- quiet study space. Yemeni menu drives the alt-drinks and food scores.
+    ( 9, 'Sukoon          study spot',      NULL,   5,   4,NULL,NULL,   4,   5,   5,   4,   5),
+    -- OSM wlan but outdoor_seating=NO, while review prose describes a covered
+    -- patio — conflicting, so patio is 3 per the rubric. Seating repeatedly
+    -- called small and hard to get. Dogs allowed; vegan and GF options.
+    (10, 'Trifecta        north valley',       4,   3,   4,   4,   4,   4,NULL,   2,   3,   4),
+    --                                     dog   qt   wf   vg   gf   fd   ou   se   pa   al
+    -- OSM wlan. Reviews: lots of comfortable seating and lounge areas, quiet at
+    -- midday, reliable wifi, a much-praised vegan breakfast burrito.
+    (11, 'Slow Burn       adobe',           NULL,   4,   5,   4,NULL,   3,NULL,   5,   4,   3),
+    -- The deliberate floor, and it is real: a wholesale roaster that tells you
+    -- itself there is "no counter, no shots pulled in front of you, and no
+    -- sitting down". Almost everything is unrated because almost nothing is
+    -- offered. Expect this shop to report `limited` or drop out entirely.
+    (12, 'Red Rock        wholesale only',  NULL,NULL,NULL,NULL,NULL,   1,NULL,   1,   1,   1),
+    -- Dogs welcome INSIDE, not just the patio. Vegan tofu breakfast burrito is
+    -- the single most-praised item. Reviews warn "almost no outlets".
+    (13, 'Rust Is Gold    moto shop',          5,NULL,NULL,   5,   4,   4,   1,   4,   4,   4),
+    -- Counter inside Sawmill Market. Multiple seating areas with laptop
+    -- workers; hand-blended Taos teas; many vegan offerings.
+    (14, 'Plata           food hall',       NULL,   4,NULL,   4,NULL,   3,NULL,   4,   4,   4),
+    -- An urban farm you drink coffee on. Free wifi advertised on their own
+    -- site; very dog friendly; the whole venue is garden seating.
+    (15, 'Bike In         farm garden',        5,   4,   4,   3,NULL,   4,NULL,   4,   5,   4),
+    -- Known for a wide gluten-free selection. Calm and quiet, but seating is
+    -- mixed — ample, yet some reviewers call the furniture uncomfortable.
+    (16, 'Whispering Bean micro roaster',      4,   4,NULL,NULL,   5,   3,NULL,   3,   3,   4),
+    -- Coffee flights and tea flights are the draw. Cozy chairs by the fire and
+    -- ADA-accessible wide seating are repeatedly called out.
+    (17, 'Sueños          flights',            4,   4,NULL,   3,NULL,   3,   4,   5,   4,   5),
+    -- Huge room with lots of seating, free wifi, pets welcome, gluten/dairy
+    -- free options. Patio exists but faces Menaul, so it is a 3 not a 4.
+    (18, 'Napoli          long hours',         4,NULL,   4,   3,   4,   4,NULL,   5,   3,   4),
+    -- OSM patio. In-house pastries and a seasonal menu; GF and vegan options;
+    -- overflow seating shared with the attached Greek restaurant.
+    (19, 'Meraki          cafe + market',      5,NULL,NULL,   3,   4,   4,NULL,   4,   4,NULL),
+    -- ABQ's first Yemeni coffee house. Listed among the city's free-wifi
+    -- shops; pistachio milk cake and Dubai croissants drive the food score;
+    -- lattes, matchas and mojitos drive alt drinks.
+    (20, 'Drop            Yemeni',             4,   3,   4,NULL,NULL,   4,NULL,   3,   3,   5),
+    -- Reviews explicitly: "ample seating options and well-placed power
+    -- outlets", shaded patio with Edison bulbs and lawn games.
+    (21, 'Citizen         early work',      NULL,   3,   4,NULL,NULL,   3,   5,   5,   4,   3),
+    -- Nonprofit coffee house. Free wifi, plenty of seating, "a perfect place to
+    -- read a book". Small menu of donuts and sandwiches.
+    (22, 'The Well        nonprofit',          4,   4,   4,NULL,NULL,   3,NULL,   4,   3,   4),
+    -- The strongest dietary story in the table: everything can be made gluten
+    -- free (listed by the National Celiac Association) and there are many vegan
+    -- options including vegan cheese and butter.
+    (23, 'Café Lush       brunch',             3,   4,   4,   5,   5,   5,NULL,   3,   4,NULL),
+    -- A panaderia rather than a cafe, and it shows: food is the standout, the
+    -- patio is spacious and dog friendly, GF options exist, free wifi.
+    (24, 'Golden Crown    panaderia',          4,NULL,   4,   3,   4,   5,NULL,   4,   5,   3),
+    -- Inside The ABQ Collective. Free high-speed wifi is the loudest claim;
+    -- large outdoor area with swings; seating limited when busy.
+    (25, 'ABQ Coffee      collective',         4,   4,   5,   4,   4,   3,NULL,   3,   4,   4)
 ),
 -- the visits step 4 just inserted, with the rater slot decoded back out of the
 -- id into the offset applied to the shop's target
@@ -408,6 +679,12 @@ target AS (
         ('Outdoor Patio',           m.patio),
         ('Alternate Drink Options', m.alt)
     ) AS t (category, value)
+    -- A NULL target means no evidence was found, so no rating row is written
+    -- at all. This is the whole mechanism behind coverage being real: the
+    -- matcher treats a missing (shop, interest) pair as unknown rather than as
+    -- a bad score, and reports `limited` when too much of a profile's weighted
+    -- preference mass lands on unknowns.
+    WHERE t.value IS NOT NULL
 )
 INSERT INTO rating (visit_id, interest_id, value)
 SELECT sv.visit_id,
@@ -426,7 +703,11 @@ COMMIT;
 
 
 -- ---------------------------------------------------------------------------
--- Verification 1: row counts. Expect 6 / 60 / 31 / 310.
+-- Verification 1: row counts. Expect 6 / 60 / 76 / 566.
+--
+-- 566, not 760, because unrated (NULL) matrix cells write no rating rows. If
+-- you see 760 here, the `WHERE t.value IS NOT NULL` filter in step 6 is gone
+-- and every unknown has been silently scored as a real value.
 -- ---------------------------------------------------------------------------
 SELECT 'profiles'    AS what, count(*) AS n FROM profile    WHERE id::text         LIKE '01900000-0000-7000-8000-0000000060%'
 UNION ALL
@@ -438,10 +719,17 @@ SELECT 'ratings',             count(*)      FROM rating     WHERE visit_id::text
 
 
 -- ---------------------------------------------------------------------------
--- Verification 2: every shop must have exactly 3 distinct raters per interest.
+-- Verification 2: every RATED (shop, interest) pair must have exactly 3
+-- distinct raters.
 --
 -- Expect ZERO rows. A row here means the DISTINCT ON dedupe is not collapsing
 -- Rosa's two visits to shop 1, or the rater rotation has a gap.
+--
+-- Note what this check can no longer tell you. Now that NULL targets produce no
+-- rating rows, an unrated (shop, interest) pair forms no group at all and is
+-- silently skipped here — so a clean result proves the raters are consistent,
+-- NOT that every pair got rated. Verification 4 below is the coverage check;
+-- run both.
 -- ---------------------------------------------------------------------------
 WITH latest AS (
     SELECT DISTINCT ON (visit.shop_id, rating.interest_id, visit.profile_id)
@@ -483,6 +771,29 @@ WHERE shop.id::text LIKE '01900000-0000-7000-8000-0000000040%'
 GROUP BY shop.name, interest.category
 HAVING count(*) >= 3 AND avg(latest.value) >= 4
 ORDER BY shop.name, avg(latest.value) DESC, interest.category;
+
+
+-- ---------------------------------------------------------------------------
+-- Verification 4: evidence coverage per interest.
+--
+-- This is the check Verification 2 cannot do. It counts how many of the 25
+-- shops carry a rating for each interest, which is the same thing as counting
+-- the non-NULL cells in the matrix.
+--
+-- Expect the distribution documented in the matrix header — Food Options at
+-- 25/25 down to Accessible Outlets at 4/25. A number that has drifted upward
+-- means somebody filled in a guess; drifting downward means rating rows did not
+-- land.
+-- ---------------------------------------------------------------------------
+SELECT interest.category,
+       count(DISTINCT visit.shop_id) AS shops_rated,
+       25 - count(DISTINCT visit.shop_id) AS shops_unrated
+FROM rating
+JOIN visit ON visit.id = rating.visit_id
+JOIN interest ON interest.id = rating.interest_id
+WHERE visit.id::text LIKE '01900000-0000-7000-8000-000000007%'
+GROUP BY interest.category
+ORDER BY count(DISTINCT visit.shop_id) DESC, interest.category;
 
 
 -- ---------------------------------------------------------------------------

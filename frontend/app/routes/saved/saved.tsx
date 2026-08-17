@@ -32,9 +32,9 @@ export default function Saved({loaderData} : Route.ComponentProps) {
     const {shops} = loaderData;
 
     return (
-        <section className="bg-amber-50">
+        <section className="bg-mocha-50">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                <p className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
                     Your favorites
                 </p>
 

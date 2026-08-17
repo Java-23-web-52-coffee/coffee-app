@@ -173,9 +173,9 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
     }
 
     return (
-        <section className="bg-amber-50">
+        <section className="bg-mocha-50">
             <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-16 lg:max-w-4xl xl:max-w-5xl">
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                <p className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
                     Personalize your matches
                 </p>
 
@@ -183,7 +183,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                     <h1 className="text-3xl font-bold text-gray-900 md:text-4xl">
                         Your preferences
                     </h1>
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-800">
+                    <span className="rounded-full bg-mocha-100 px-3 py-1 text-sm font-semibold text-mocha-800">
                         {answeredCount}/{items.length} answered
                     </span>
                 </div>
@@ -224,7 +224,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                         <div className="flex items-center gap-4 sm:flex-row-reverse">
                             <button
                                 type="submit"
-                                className="w-full rounded-lg bg-amber-700 px-6 py-3 text-base font-semibold text-white hover:bg-amber-800 sm:w-auto"
+                                className="w-full rounded-lg bg-mocha-700 px-6 py-3 text-base font-semibold text-white hover:bg-mocha-800 sm:w-auto"
                             >
                                 {answeredCount === 0
                                     ? "Save preferences"
@@ -233,7 +233,7 @@ export default function Preferences({ loaderData} : Route.ComponentProps) {
                             <button
                                 type="button"
                                 onClick={() => finalizeSave()}
-                                className="font-semibold text-amber-700 hover:text-amber-900"
+                                className="font-semibold text-mocha-700 hover:text-mocha-900"
                             >
                                 Skip for now
                             </button>

@@ -61,9 +61,9 @@ export function TagFilter(props: TagFilterProps) {
                             {/* the count is nested, so peer-checked reaches it through a
                                 descendant variant on this span — peer-* alone only
                                 matches siblings of the checkbox */}
-                            <span className="block rounded-full border border-amber-200 bg-amber-100 px-3 py-1 text-sm font-medium text-amber-900 peer-checked:border-amber-700 peer-checked:bg-amber-700 peer-checked:text-white peer-checked:[&_span]:text-amber-100 peer-focus-visible:ring-2 peer-focus-visible:ring-amber-600 peer-focus-visible:ring-offset-2">
+                            <span className="block rounded-full border border-mocha-200 bg-mocha-100 px-3 py-1 text-sm font-medium text-mocha-900 peer-checked:border-mocha-700 peer-checked:bg-mocha-700 peer-checked:text-white peer-checked:[&_span]:text-mocha-100 peer-focus-visible:ring-2 peer-focus-visible:ring-mocha-600 peer-focus-visible:ring-offset-2">
                                 {option.interest.category}
-                                <span aria-hidden="true" className="ml-1.5 text-amber-700">
+                                <span aria-hidden="true" className="ml-1.5 text-mocha-700">
                                     · {option.shopCount}
                                 </span>
                                 <span className="sr-only">, {option.shopCount} cafés</span>

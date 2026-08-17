@@ -33,8 +33,8 @@ const QUALITY_COPY: Record<MatchQuality, string> = {
 // than as the bottom of the scale — it is a different kind of answer from
 // "weak", which IS a verdict.
 const QUALITY_CLASSES: Record<MatchQuality, string> = {
-    great: 'border-amber-600 bg-amber-100 text-amber-900',
-    good: 'border-amber-300 bg-amber-50 text-amber-800',
+    great: 'border-mocha-600 bg-mocha-100 text-mocha-900',
+    good: 'border-mocha-300 bg-mocha-50 text-mocha-800',
     fair: 'border-gray-300 bg-gray-50 text-gray-700',
     weak: 'border-gray-200 bg-white text-gray-500',
     limited: 'border-dashed border-gray-300 bg-white text-gray-500'
