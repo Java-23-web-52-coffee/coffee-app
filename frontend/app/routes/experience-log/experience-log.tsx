@@ -198,14 +198,14 @@ export default function ExperienceLog({ loaderData }: Route.ComponentProps) {
                             </p>
                             <Link
                                 to="/preferences"
-                                className="inline-block rounded-lg bg-amber-700 px-6 py-3 text-[15px] font-semibold text-white hover:bg-amber-800"
+                                className="inline-block rounded-lg bg-mocha-700 px-6 py-3 text-[15px] font-semibold text-white hover:bg-mocha-800"
                             >
                                 Choose your preferences
                             </Link>
                             <button
                                 type="button"
                                 onClick={() => setRateAll(true)}
-                                className="mt-4 block w-full text-sm font-semibold text-amber-700 hover:text-amber-900"
+                                className="mt-4 block w-full text-sm font-semibold text-mocha-700 hover:text-mocha-900"
                             >
                                 Or rate all {allItems.length} interests
                             </button>
@@ -229,7 +229,7 @@ export default function ExperienceLog({ loaderData }: Route.ComponentProps) {
                                 <button
                                     type="button"
                                     onClick={() => setRateAll((prev) => !prev)}
-                                    className="mb-5 block w-full text-sm font-semibold text-amber-700 hover:text-amber-900"
+                                    className="mb-5 block w-full text-sm font-semibold text-mocha-700 hover:text-mocha-900"
                                 >
                                     {rateAll
                                         ? "Show only my preferences"
@@ -242,7 +242,7 @@ export default function ExperienceLog({ loaderData }: Route.ComponentProps) {
                                 disabled={ratedEntries.length === 0}
                                 className={`w-full h-12 rounded-lg border-none text-[15px] font-semibold transition-colors duration-150 ${
                                     ratedEntries.length > 0
-                                        ? "text-white bg-amber-700 hover:bg-amber-800 cursor-pointer"
+                                        ? "text-white bg-mocha-700 hover:bg-mocha-800 cursor-pointer"
                                         : "text-gray-400 bg-gray-100 cursor-not-allowed"
                                 }`}
                             >

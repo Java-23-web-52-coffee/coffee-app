@@ -11,8 +11,8 @@ export const OPTIONS: { value: PrefValue; label: string }[] = [
 export const OPTION_CLASSES: Record<"unselected" | PrefValue, string> = {
     unselected: "bg-white border-gray-200 text-gray-500 hover:border-gray-300",
     no: "bg-gray-50 border-gray-300 text-gray-600",
-    nice: "bg-amber-50 border-amber-300 text-amber-700",
-    must: "bg-amber-100 border-amber-600 text-amber-900",
+    nice: "bg-mocha-50 border-mocha-300 text-mocha-700",
+    must: "bg-mocha-100 border-mocha-600 text-mocha-900",
 };
 
 export const MUST_HAVE_SOFT_CAP = 5;

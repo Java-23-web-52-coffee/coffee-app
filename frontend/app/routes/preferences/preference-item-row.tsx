@@ -63,7 +63,7 @@ export function PreferenceItemRow({ item, value, onToggle, onSelect }: Preferenc
                             tabIndex={index === selectedIndex ? 0 : -1}
                             onClick={() => onToggle(item.id, option.value)}
                             onKeyDown={(event) => handleOptionKeyDown(event, index)}
-                            className={`h-10 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-1 ${
+                            className={`h-10 rounded-lg border text-xs font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mocha-600 focus-visible:ring-offset-1 ${
                                 OPTION_CLASSES[isSelected ? option.value : "unselected"]
                             }`}
                         >

@@ -54,9 +54,9 @@ export default function ShopPage({loaderData}: Route.ComponentProps) {
     const isFavorite = favorite ?? false
     const buttonText = isFavorite ? 'Unfavorite' : 'Favorite'
     return (
-        <section className="bg-amber-50">
+        <section className="bg-mocha-50">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                <p className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
                     Coffee shop
                 </p>
 
@@ -76,7 +76,7 @@ export default function ShopPage({loaderData}: Route.ComponentProps) {
                             <p className="text-gray-600">{shop.address}</p>
 
                             <div className="mt-6">
-                                <h2 className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                                <h2 className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
                                     Vibe
                                 </h2>
 
@@ -100,8 +100,8 @@ export default function ShopPage({loaderData}: Route.ComponentProps) {
                                     onClick={toggleFavorite}
                                     className={
                                         isFavorite
-                                            ? "rounded-lg border border-amber-700 px-6 py-3 font-semibold text-amber-700 hover:bg-amber-100"
-                                            : "rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
+                                            ? "rounded-lg border border-mocha-700 px-6 py-3 font-semibold text-mocha-700 hover:bg-mocha-100"
+                                            : "rounded-lg bg-mocha-700 px-6 py-3 font-semibold text-white hover:bg-mocha-800"
                                     }
                                 >
                                     {buttonText}
@@ -113,7 +113,7 @@ export default function ShopPage({loaderData}: Route.ComponentProps) {
                                     submitted, not here. */}
                                 <Link
                                     to={`/experience-log/${shop.id}`}
-                                    className="rounded-lg border border-amber-700 px-6 py-3 font-semibold text-amber-700 hover:bg-amber-100"
+                                    className="rounded-lg border border-mocha-700 px-6 py-3 font-semibold text-mocha-700 hover:bg-mocha-100"
                                 >
                                     Log a visit
                                 </Link>

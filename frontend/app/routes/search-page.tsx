@@ -31,10 +31,10 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
         && new URLSearchParams(navigation.location.search).has('q')
 
     return (
-        <section className="bg-amber-50">
+        <section className="bg-mocha-50">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
                 <div className="text-center">
-                    <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
                         Explore cafés
                     </p>
 
@@ -66,11 +66,11 @@ Search cafes by name/location or click "View Details" to save or rate a shop's e
                                 key={searchTerm}
                                 defaultValue={searchTerm}
                                 placeholder="Search by name or location"
-                                className="w-full rounded-md border border-gray-400 px-4 py-3 pl-10 text-gray-900 placeholder:text-gray-500 focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-600"
+                                className="w-full rounded-md border border-gray-400 px-4 py-3 pl-10 text-gray-900 placeholder:text-gray-500 focus:border-mocha-600 focus:outline-none focus:ring-2 focus:ring-mocha-600"
                             />
                             <button
                                 type="submit"
-                                className="absolute inset-y-1.5 right-1.5 rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-70"
+                                className="absolute inset-y-1.5 right-1.5 rounded-lg bg-mocha-700 px-4 text-sm font-semibold text-white hover:bg-mocha-800 disabled:opacity-70"
                                 disabled={isSearching}
                             >
                                 {isSearching ? 'Searching…' : 'Search'}

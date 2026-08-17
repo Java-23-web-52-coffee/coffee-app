@@ -33,10 +33,10 @@ export function ShopTagChip(props: ShopTagChipProps) {
 
     return (
         <li
-            className={`rounded-full border border-amber-200 bg-amber-100 font-medium text-amber-900 ${SIZE_CLASSES[size]}`}
+            className={`rounded-full border border-mocha-200 bg-mocha-100 font-medium text-mocha-900 ${SIZE_CLASSES[size]}`}
         >
             {tag.category}
-            <span aria-hidden="true" className="ml-1.5 text-amber-700">
+            <span aria-hidden="true" className="ml-1.5 text-mocha-700">
                 · {tag.ratingCount}
             </span>
             <span className="sr-only">, from {tag.ratingCount} people</span>

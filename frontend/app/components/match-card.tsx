@@ -53,7 +53,7 @@ export function MatchCard({ match }: MatchCardProps) {
                 {detailPath !== null && (
                     <Link
                         to={detailPath}
-                        className="mt-5 inline-block font-semibold text-amber-700 hover:text-amber-900"
+                        className="mt-5 inline-block font-semibold text-mocha-700 hover:text-mocha-900"
                     >
                         View Details
                     </Link>

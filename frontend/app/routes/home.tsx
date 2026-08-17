@@ -44,11 +44,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   return (
       <>
       <main>
-        <section className="bg-amber-50">
+        <section className="bg-mocha-50">
           <div className="mx-auto grid max-w-7xl items-center gap-8 px-6 py-8 md:grid-cols-2 md:py-10">
 
             <div className="text-center md:text-left">
-              <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-amber-700">
+              <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-mocha-700">
                 Personalized cafe recommendations
               </p>
 
@@ -79,7 +79,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   <section className="bg-white" id="your-matches">
     <div className="mx-auto max-w-7xl px-6 pt-10 pb-20">
       <div className="mb-10 text-center">
-        <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+        <p className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
           Personalized for you
         </p>
 
@@ -93,7 +93,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </div>
 
       {!signedIn ? (
-        <div className="rounded-2xl border border-gray-200 bg-amber-50 p-8">
+        <div className="rounded-2xl border border-gray-200 bg-mocha-50 p-8">
           <h3 className="text-lg font-bold text-gray-900">
             Sign in to see your matches
           </h3>
@@ -103,7 +103,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </p>
           <Link
             to="/sign-in"
-            className="mt-6 inline-block rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
+            className="mt-6 inline-block rounded-lg bg-mocha-700 px-6 py-3 font-semibold text-white hover:bg-mocha-800"
           >
             Sign in
           </Link>
@@ -126,7 +126,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
            without asserting that they are the problem. Telling someone who
            already set their preferences to go set them is the failure mode
            worth avoiding. */
-        <div className="rounded-2xl border border-gray-200 bg-amber-50 p-8">
+        <div className="rounded-2xl border border-gray-200 bg-mocha-50 p-8">
           <h3 className="text-lg font-bold text-gray-900">
             No matches yet
           </h3>
@@ -138,13 +138,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="mt-6 flex flex-wrap gap-4">
             <Link
               to="/preferences"
-              className="rounded-lg bg-amber-700 px-6 py-3 font-semibold text-white hover:bg-amber-800"
+              className="rounded-lg bg-mocha-700 px-6 py-3 font-semibold text-white hover:bg-mocha-800"
             >
               Check your preferences
             </Link>
             <Link
               to="/search-page"
-              className="rounded-lg border border-amber-700 px-6 py-3 font-semibold text-amber-700 hover:bg-amber-100"
+              className="rounded-lg border border-mocha-700 px-6 py-3 font-semibold text-mocha-700 hover:bg-mocha-100"
             >
               Rate a café you&rsquo;ve visited
             </Link>
