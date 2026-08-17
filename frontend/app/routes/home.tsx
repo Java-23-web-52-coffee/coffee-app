@@ -45,18 +45,18 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <>
       <main>
         <section className="bg-amber-50">
-          <div className="mx-auto grid max-w-7xl items-center gap-10 px-6 py-16 md:grid-cols-2 md:py-24">
+          <div className="mx-auto grid max-w-7xl items-center gap-8 px-6 py-8 md:grid-cols-2 md:py-10">
 
             <div className="text-center md:text-left">
-              <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-amber-700">
+              <p className="mb-2 text-sm font-semibold uppercase tracking-wide text-amber-700">
                 Personalized cafe recommendations
               </p>
 
-              <h1 className="mb-6 text-4xl font-bold leading-tight text-gray-900 md:text-6xl">
+              <h1 className="mb-4 text-3xl font-bold leading-tight text-gray-900 md:text-5xl">
                 Find the perfect cafe for today.
               </h1>
 
-              <p className="mx-auto max-w-xl text-lg leading-8 text-gray-600 md:mx-0">
+              <p className="mx-auto max-w-xl text-base leading-7 text-gray-600 md:mx-0">
                 BrewMatch helps you discover coffee shops based on what matters
                 most to you, including WiFi, noise level, seating, outlets, food,
                 and atmosphere.
@@ -67,7 +67,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <img
                 src="/homepagecoffeeshop.jpg"
                 alt="A busy café interior lit by hanging lamps, with a glowing COFFEE sign above the counter"
-                className="h-80 w-full max-w-lg rounded-3xl object-cover"
+                className="h-64 w-full max-w-lg rounded-3xl object-cover"
               />
             </div>
 
@@ -77,17 +77,17 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
 
   <section className="bg-white" id="your-matches">
-    <div className="mx-auto max-w-7xl px-6 py-16">
-      <div className="mb-8 text-center md:text-left">
+    <div className="mx-auto max-w-7xl px-6 pt-10 pb-20">
+      <div className="mb-10 text-center">
         <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
           Personalized for you
         </p>
 
-        <h2 className="mt-2 text-3xl font-bold text-gray-900">
+        <h2 className="mt-2 text-4xl font-bold text-gray-900 md:text-5xl">
           Your top matches
         </h2>
 
-        <p className="mt-3 text-gray-600">
+        <p className="mx-auto mt-3 max-w-2xl text-lg text-gray-600">
           Coffee shops that match your current preferences.
         </p>
       </div>
@@ -151,7 +151,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-3">
           {matches.map((match) => (
             <MatchCard key={match.id ?? match.name} match={match} />
           ))}

@@ -33,20 +33,22 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
     return (
         <section className="bg-amber-50">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-                    Explore cafés
-                </p>
+                <div className="text-center">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
+                        Explore cafés
+                    </p>
 
-                <h1 className="mt-2 text-3xl font-bold text-gray-900 md:text-4xl">
-                    Find a coffee shop
-                </h1>
+                    <h1 className="mt-2 text-4xl font-bold text-gray-900 md:text-5xl">
+                        Find a coffee shop
+                    </h1>
 
-                <p className="mt-3 text-gray-600">
-                    Browse cafés and search by name or location.
-                </p>
+                    <p className="mx-auto mt-3 max-w-2xl text-xl text-gray-600 font-bold">
+Search cafes by name/location or click "View Details" to save or rate a shop's experience.
+                    </p>
+                </div>
 
                 <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
-                    <Form method="get" className="max-w-md">
+                    <Form method="get" className="mx-auto max-w-md">
                         <label htmlFor="search" className="sr-only">Search</label>
                         <div className="relative">
                             <div className="pointer-events-none absolute inset-y-0 flex items-center pl-3">
@@ -77,7 +79,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                     </Form>
 
                     {shops.length === 0 ? (
-                        <p className="mt-8 text-gray-500">
+                        <p className="mt-8 text-center text-gray-500">
                             {searchTerm === ''
                                 ? 'No cafés found.'
                                 : `No cafés match “${searchTerm}”. Try a different name or location.`}

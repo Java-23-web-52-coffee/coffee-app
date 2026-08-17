@@ -19,29 +19,37 @@ export async function loader({request}: Route.LoaderArgs) {
 }
 
 // Flowbite's Navbar switches from a hamburger menu to a full horizontal row
-// at the `md` breakpoint (768px) by default. This nav's content (logo plus
-// five links) needs ~1090px to fit on one row at the current type sizes, so
-// anywhere below that the row wraps and the links drop under the logo.
-// `clearTheme` wipes just the `md:`-based classes below, and `theme`
-// supplies the same classes with `xl:` (1280px) instead — same visual
-// styling, switch-over point moved past the squeeze zone. Bumping the link
-// or brand sizes again means re-checking that ~1090px against the
-// breakpoint.
+// at the `md` breakpoint (768px) by default. That is too early for this nav:
+// measured in the browser, the brand (213px) plus the link row (629px signed
+// in, which is the wider case because "Sign Out" beats "Sign Up") plus 47px of
+// container padding needs **889px** to sit on one row. Below that the row
+// wraps and the links drop under the logo.
+//
+// `clearTheme` wipes just the `md:`-based classes below, and `theme` supplies
+// the same classes with `lg:` (1024px) instead — same visual styling,
+// switch-over point moved past the squeeze zone, with ~135px of slack.
+//
+// This was `xl:` (1280px) when the nav carried five links and needed ~1090px.
+// Removing "Log a Visit" dropped the requirement to 889px, so `lg:` now gives
+// the horizontal row to every screen from 1024px up instead of 1280px.
+//
+// Changing the links, the brand size or the type scale means re-measuring.
+// The check is: brand width + link-row width + 47 <= breakpoint.
 const navbarBreakpointOverride = {
     theme: {
         collapse: {
-            base: "w-full xl:block xl:w-auto",
-            list: "mt-4 flex flex-col text-lg xl:mt-0 xl:flex-row xl:space-x-6 xl:font-medium",
+            base: "w-full lg:block lg:w-auto",
+            list: "mt-4 flex flex-col text-lg lg:mt-0 lg:flex-row lg:space-x-6 lg:font-medium",
         },
         link: {
-            base: "block py-2 pl-3 pr-4 xl:p-0",
+            base: "block py-2 pl-3 pr-4 lg:p-0",
             active: {
-                on: "bg-primary-700 text-white xl:bg-transparent xl:text-primary-700 dark:text-white",
-                off: "border-b border-gray-100 text-gray-700 hover:bg-gray-50 xl:border-0 xl:hover:bg-transparent xl:hover:text-primary-700 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white xl:dark:hover:bg-transparent xl:dark:hover:text-white",
+                on: "bg-primary-700 text-white lg:bg-transparent lg:text-primary-700 dark:text-white",
+                off: "border-b border-gray-100 text-gray-700 hover:bg-gray-50 lg:border-0 lg:hover:bg-transparent lg:hover:text-primary-700 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white lg:dark:hover:bg-transparent lg:dark:hover:text-white",
             },
         },
         toggle: {
-            base: "inline-flex items-center rounded-lg p-2 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 xl:hidden dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600",
+            base: "inline-flex items-center rounded-lg p-2 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 lg:hidden dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600",
         },
     },
     clearTheme: {
@@ -86,13 +94,6 @@ const navbarBreakpointOverride = {
                             <span>Saved Places</span>
                         </div>
                         </NavbarLink>
-
-                    <NavbarLink href="#">
-                        <div className="flex items-center gap-1  lg:flex">
-                            <img src={'/coffee.svg'}  className={"h-6"}/>
-                            <span>Log a Visit</span>
-                        </div>
-                    </NavbarLink>
 
                     <NavbarLink href="/preferences">
                         <div className="flex items-center gap-1  lg:flex">
