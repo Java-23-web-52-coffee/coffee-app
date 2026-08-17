@@ -60,7 +60,7 @@ export function RatingItemRow({ item, value, onSelect }: RatingItemRowProps) {
                             tabIndex={index === selectedIndex ? 0 : -1}
                             onClick={() => onSelect(item.id, option)}
                             onKeyDown={(event) => handleOptionKeyDown(event, index)}
-                            className={`h-11 flex-1 rounded-lg border text-[15px] font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 focus-visible:ring-offset-1 ${
+                            className={`h-11 flex-1 rounded-lg border text-[15px] font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mocha-600 focus-visible:ring-offset-1 ${
                                 RATING_OPTION_CLASSES[isSelected ? "selected" : "unselected"]
                             }`}
                         >

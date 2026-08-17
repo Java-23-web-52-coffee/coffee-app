@@ -55,7 +55,7 @@ export function ShopCard({ shop, tags }: { shop: ShopWithDistance, tags?: ShopTa
                         </ul>
                     )}
 
-                    <span className="mt-4 inline-block font-semibold text-amber-700">View Details</span>
+                    <span className="mt-4 inline-block font-semibold text-mocha-700">View Details</span>
                 </div>
             </div>
         </Link>

@@ -83,7 +83,7 @@ export function NearMeButton({isLocated}: { isLocated: boolean }) {
                 type="button"
                 onClick={locate}
                 disabled={state === 'locating'}
-                className="inline-flex items-center gap-2 rounded-md border border-amber-700 px-4 py-3 text-sm font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-70"
+                className="inline-flex items-center gap-2 rounded-md border border-mocha-700 px-4 py-3 text-sm font-semibold text-mocha-800 hover:bg-mocha-50 disabled:opacity-70"
             >
                 <svg className="h-4 w-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                      fill="none" viewBox="0 0 24 24">

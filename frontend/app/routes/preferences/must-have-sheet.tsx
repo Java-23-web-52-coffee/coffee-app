@@ -39,7 +39,7 @@ export function MustHaveSheet({ open, mustItems, onPick, onSkip }: MustHaveSheet
                             role="radio"
                             aria-checked={false}
                             onClick={() => onPick(item.id)}
-                            className="grid h-11 items-center rounded-lg border border-gray-200 px-3.5 text-left text-sm font-medium text-gray-900 transition-colors duration-150 hover:border-amber-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-600 motion-reduce:transition-none"
+                            className="grid h-11 items-center rounded-lg border border-gray-200 px-3.5 text-left text-sm font-medium text-gray-900 transition-colors duration-150 hover:border-mocha-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mocha-600 motion-reduce:transition-none"
                         >
                             {item.label}
                         </button>
@@ -48,7 +48,7 @@ export function MustHaveSheet({ open, mustItems, onPick, onSkip }: MustHaveSheet
                 <button
                     type="button"
                     onClick={onSkip}
-                    className="self-start font-semibold text-amber-700 hover:text-amber-900"
+                    className="self-start font-semibold text-mocha-700 hover:text-mocha-900"
                 >
                     Skip
                 </button>

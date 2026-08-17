@@ -10,7 +10,7 @@
 -- against whatever data the loader put there. Deeper seeding is a later
 -- ticket.
 --
--- Safe to run more than once: every insert is ON CONFLICT DO NOTHING, so a
+-- Safe to run more than once, every insert is ON CONFLICT DO NOTHING, so a
 -- second run changes nothing.
 --
 -- Run it:  psql "$DATABASE_URL" -f sql/seed-tags.sql

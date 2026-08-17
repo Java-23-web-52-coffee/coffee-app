@@ -10,9 +10,34 @@
 // documentation/matching-algorithm.md.
 //
 
-// An interest nobody has rated for this shop sits at the midpoint of the
-// normalized scale (equivalent to a raw rating of 3), so an unknown neither
-// helps nor hurts the shop.
+// What an unrated interest is worth. This is the midpoint of the normalized
+// scale (a raw rating of 3).
+//
+// "Neutral" is the wrong word for it, and an earlier version of this comment
+// claimed an unknown "neither helps nor hurts the shop". It hurts, on purpose.
+// Measured against the seeded Albuquerque data, the mean normalized rating
+// across all rated (shop, interest) pairs is 0.735 — cafés that get written
+// about are, unsurprisingly, good at the things they get written about. So
+// scoring an unknown at 0.5 puts it ~23 points below what an average shop
+// actually earns.
+//
+// That gap IS the mechanism. It is a confidence discount: the less we know
+// about a shop, the harder it is for that shop to reach the top of a ranking.
+// A café with one documented strength cannot leapfrog a café that is
+// demonstrably good across everything the profile asked for.
+//
+// DO NOT "fix" this by dividing score01 by ratedWeightSum instead of
+// weightSum. That was measured on real data and is worse: it scores a shop
+// purely on what happens to be known about it, so the top result becomes
+// whichever thinly-documented shop got a lucky rating. On the seeded data it
+// puts a coverage-0.26 shop at #1 for one profile and a coverage-0.45 shop at
+// #1 for another — both of which render as `limited`, i.e. a top
+// recommendation carrying no verdict at all. Score spread degrades from 33-89
+// to 8-92.
+//
+// Uncertainty is reported honestly through `coverage`, which is returned
+// separately and drives the `limited` band in bandFor. That is the right place
+// for it — not in the point estimate.
 export const NEUTRAL_NORMALIZED = 0.5
 
 // Below this share of weighted preference mass backed by real ratings, the
@@ -77,6 +102,13 @@ export function toMatchScore (score01: number): number {
 //
 // importance 0 ("no" in the preferences form) means "I don't care", so it
 // drops out of the numerator and the denominator together.
+//
+// An UNRATED interest is different, and the difference is deliberate: it keeps
+// its full share of the denominator while contributing only
+// NEUTRAL_NORMALIZED to the numerator. "I don't care" removes a question from
+// the exam; "nobody knows" leaves the question on the exam and scores it
+// poorly. See the note on NEUTRAL_NORMALIZED for why, and for the alternative
+// that was measured and rejected.
 //
 // @param preference interestId -> importance (0-1)
 // @param shopAverages interestId -> average rating (1-5); a missing key is an

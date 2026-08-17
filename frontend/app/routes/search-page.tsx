@@ -73,23 +73,31 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
     const withoutTagsQuery = withoutTagsParams.toString()
 
     return (
-        <section className="bg-amber-50">
+        <section className="bg-mocha-50">
             <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-700">
-                    Explore cafés
-                </p>
+                <div className="text-center">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
+                        Explore cafés
+                    </p>
 
-                <h1 className="mt-2 text-3xl font-bold text-gray-900 md:text-4xl">
-                    Find a coffee shop
-                </h1>
+                    <h1 className="mt-2 text-4xl font-bold text-gray-900 md:text-5xl">
+                        Find a coffee shop
+                    </h1>
 
-                <p className="mt-3 text-gray-600">
-                    Browse cafés and search by name or location.
-                </p>
+                    <p className="mx-auto mt-3 max-w-2xl text-xl text-gray-600 font-bold">
+                        Search cafes by name/location or click &quot;View Details&quot; to
+                        save or rate a shop&rsquo;s experience.
+                    </p>
+                </div>
 
                 <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
                     {/* one Form for both filters, so the term and the checked tags
-                        submit together and land in the same URL */}
+                        submit together and land in the same URL.
+
+                        The width constraint sits on the search box below rather
+                        than on the form, which is where this branch used to have
+                        it — a max-w-md form would squeeze the tag chips into a
+                        narrow column. */}
                     <Form method="get">
                         {/* the position is not a visible field, so without these a
                             later term-or-tag submit would silently drop it and
@@ -119,11 +127,11 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                                 key={searchTerm}
                                 defaultValue={searchTerm}
                                 placeholder="Search by name or location"
-                                className="w-full rounded-md border border-gray-400 px-4 py-3 pl-10 text-gray-900 placeholder:text-gray-500 focus:border-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-600"
+                                className="w-full rounded-md border border-gray-400 px-4 py-3 pl-10 text-gray-900 placeholder:text-gray-500 focus:border-mocha-600 focus:outline-none focus:ring-2 focus:ring-mocha-600"
                             />
                             <button
                                 type="submit"
-                                className="absolute inset-y-1.5 right-1.5 rounded-lg bg-amber-700 px-4 text-sm font-semibold text-white hover:bg-amber-800 disabled:opacity-70"
+                                className="absolute inset-y-1.5 right-1.5 rounded-lg bg-mocha-700 px-4 text-sm font-semibold text-white hover:bg-mocha-800 disabled:opacity-70"
                                 disabled={isSearching}
                             >
                                 {isSearching ? 'Searching…' : 'Search'}
@@ -142,7 +150,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                                     unlocated URL, keeping the term and the tags */}
                                 <Link
                                     to={withoutPositionQuery === '' ? '/search-page' : `/search-page?${withoutPositionQuery}`}
-                                    className="font-medium text-amber-800 underline hover:text-amber-900"
+                                    className="font-medium text-mocha-800 underline hover:text-mocha-900"
                                 >
                                     Clear location
                                 </Link>
@@ -157,7 +165,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                                     unfiltered URL, keeping the term the visitor typed */}
                                 <Link
                                     to={withoutTagsQuery === '' ? '/search-page' : `/search-page?${withoutTagsQuery}`}
-                                    className="text-sm font-medium text-amber-800 underline hover:text-amber-900"
+                                    className="text-sm font-medium text-mocha-800 underline hover:text-mocha-900"
                                 >
                                     Clear tag filters
                                 </Link>
@@ -166,7 +174,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                     </Form>
 
                     {shops.length === 0 ? (
-                        <p className="mt-8 text-gray-500">
+                        <p className="mt-8 text-center text-gray-500">
                             {hasFilters
                                 ? `No cafés carry ${selectedInterestIds.length === 1 ? 'that tag' : 'all of those tags'}${searchTerm === '' ? '' : ` and match “${searchTerm}”`}. Try removing one.`
                                 : searchTerm === ''
