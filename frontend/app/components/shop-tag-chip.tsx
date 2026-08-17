@@ -12,7 +12,7 @@ import type {ShopTag} from "~/utils/models/shop-tag.model";
  * readers as ", from 3 people" so the bare number is never read without
  * context.
  *
- * @param tag - a derived tag: interestId, category, and ratingCount
+ * @param tag - a derived tag: the interest it was earned on, and the count
  * @param size - 'md' (default) for detail pages, 'sm' for dense contexts like ShopCard
  *
  * @returns a single <li> chip, so callers own the surrounding <ul> and its layout
@@ -35,11 +35,11 @@ export function ShopTagChip(props: ShopTagChipProps) {
         <li
             className={`rounded-full border border-mocha-200 bg-mocha-100 font-medium text-mocha-900 ${SIZE_CLASSES[size]}`}
         >
-            {tag.category}
+            {tag.interest.category}
             <span aria-hidden="true" className="ml-1.5 text-mocha-700">
-                · {tag.ratingCount}
+                · {tag.count}
             </span>
-            <span className="sr-only">, from {tag.ratingCount} people</span>
+            <span className="sr-only">, from {tag.count} people</span>
         </li>
     )
 }

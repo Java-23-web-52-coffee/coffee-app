@@ -201,7 +201,7 @@ export function bandFor (score01: number, coverage: number): MatchQuality
 first so `limited` cannot be overridden by a high score built on guesses.
 
 Return a semantic enum, never display copy — the UI owns the words, the same way
-`ShopTag` returns `category` rather than rendered chip text.
+`ShopTag` returns `interest.category` rather than rendered chip text.
 
 **New — `backend/src/apis/matches/matches.model.ts`**
 
