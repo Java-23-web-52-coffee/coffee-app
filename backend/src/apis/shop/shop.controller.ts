@@ -21,6 +21,37 @@ const InterestIdQueryModel = z.union([
     .optional()
     .transform(value => value === undefined ? undefined : (Array.isArray(value) ? value : [value]))
 
+// `?lat=` arrives as an empty string, and Number('') is 0 — a perfectly valid
+// latitude out on the equator, which is not the "absent" the caller meant. The
+// blank is dropped before coercion, the same way a blank q collapses below
+const blankToUndefined = (value: unknown): unknown =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value
+
+// The caller's position. Validated as a pair because half of one locates
+// nothing: quietly ignoring a stray lat would hand back a name-ordered list to
+// a client that asked for nearest-first, which looks like a server bug from the
+// outside. Bounds run after coercion, since Express hands back only strings
+const OriginQueryModel = z.object({
+    lat: z.preprocess(blankToUndefined, z.coerce
+        .number('Please provide a valid latitude')
+        .min(-90)
+        .max(90)
+        .optional()),
+    lng: z.preprocess(blankToUndefined, z.coerce
+        .number('Please provide a valid longitude')
+        .min(-180)
+        .max(180)
+        .optional())
+})
+    .refine(position => (position.lat === undefined) === (position.lng === undefined), {
+        message: 'Please provide both lat and lng, or neither'
+    })
+    // collapses to a single optional value, so the model takes one argument
+    // that is either a whole position or nothing at all
+    .transform(position => position.lat === undefined || position.lng === undefined
+        ? undefined
+        : {lat: position.lat, lng: position.lng})
+
 export async function getAllShopsController(request: Request, response: Response):Promise<void> {
     try {
         // an absent or blank q means "list everything", so empty strings collapse to undefined
@@ -43,6 +74,13 @@ export async function getAllShopsController(request: Request, response: Response
         }
         const interestIds = interestResult.data
 
+        const originResult = OriginQueryModel.safeParse({lat: request.query.lat, lng: request.query.lng})
+        if (!originResult.success) {
+            sendZodError(request, response, originResult.error)
+            return
+        }
+        const origin = originResult.data
+
         // with no tags selected the tag aggregation never runs, so the plain
         // search costs exactly what it did before
         const shopIds = interestIds === undefined
@@ -57,8 +95,9 @@ export async function getAllShopsController(request: Request, response: Response
             return
         }
 
-        //run the shop listing, narrowed by whichever filters were supplied
-        const shops = await selectShops(searchTerm, shopIds)
+        //run the shop listing, narrowed by whichever filters were supplied and
+        //ordered nearest-first when the caller sent a position
+        const shops = await selectShops(searchTerm, shopIds, origin)
 
         //prepare response with shops from database
         response.json(shops)
@@ -96,7 +135,7 @@ const {address, hours, lat, lng, name, phone, imageUrl} = validationResult.data
     const createdShop = await insertShop(shop)
         response
             .status(201)
-            .location(`/apis/shop/${shop.id}`)
+            .location(`/apis/shops/${shop.id}`)
             .json(createdShop)
 
 

@@ -1,4 +1,5 @@
-import {getAllShops, type Shop} from "~/utils/models/shop.model";
+import {getAllShops, readOrigin, type ShopWithDistance} from "~/utils/models/shop.model";
+import {NearMeButton} from "~/components/near-me-button";
 import type { Route } from './+types/search-page';
 import {ShopCard} from "~/components/shop-card";
 import {
@@ -17,8 +18,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     const searchTerm = url.searchParams.get('q')?.trim() ?? ''
     // repeatable: the server returns shops carrying every tag listed
     const selectedInterestIds = url.searchParams.getAll('interestId')
+    // a position sorts nearest-first without filtering, so it never competes
+    // with the term or the tags for which shops come back
+    const origin = readOrigin(url.searchParams)
 
-    const shops: Shop[] = await getAllShops(searchTerm, selectedInterestIds)
+    const shops: ShopWithDistance[] = await getAllShops(searchTerm, selectedInterestIds, origin)
 
     // one unscoped request feeds both jobs: the filter chips, and the tags on
     // each card. Scoping it to the results would make the chip list shrink as
@@ -35,16 +39,38 @@ export async function loader({ request }: Route.LoaderArgs) {
         console.error('Failed to load tags for search results:', error)
     }
 
-    return {shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId}
+    return {shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId, origin}
 }
 
 export default function SearchPage({ loaderData }: Route.ComponentProps) {
-    const { shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId } = loaderData;
+    const { shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId, origin } = loaderData;
     const navigation = useNavigation()
     // any navigation back to this page is a search — testing for `q` would miss
     // a submit that only changed the tag checkboxes
     const isSearching = navigation.location?.pathname === '/search-page'
     const hasFilters = selectedInterestIds.length > 0
+    const isLocated = origin !== undefined
+
+    // the term and tags to keep when clearing the position — dropping lat/lng
+    // should not also throw away what the visitor searched for
+    const withoutPositionParams = new URLSearchParams()
+    if (searchTerm !== '') {
+        withoutPositionParams.set('q', searchTerm)
+    }
+    selectedInterestIds.forEach(interestId => withoutPositionParams.append('interestId', interestId))
+    const withoutPositionQuery = withoutPositionParams.toString()
+
+    // and the mirror of it: clearing the tags keeps the term AND the position,
+    // so a located visitor who drops a tag stays sorted by distance
+    const withoutTagsParams = new URLSearchParams()
+    if (searchTerm !== '') {
+        withoutTagsParams.set('q', searchTerm)
+    }
+    if (origin !== undefined) {
+        withoutTagsParams.set('lat', String(origin.lat))
+        withoutTagsParams.set('lng', String(origin.lng))
+    }
+    const withoutTagsQuery = withoutTagsParams.toString()
 
     return (
         <section className="bg-amber-50">
@@ -65,8 +91,19 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                     {/* one Form for both filters, so the term and the checked tags
                         submit together and land in the same URL */}
                     <Form method="get">
+                        {/* the position is not a visible field, so without these a
+                            later term-or-tag submit would silently drop it and
+                            reorder the results back to alphabetical */}
+                        {isLocated && (
+                            <>
+                                <input type="hidden" name="lat" value={origin.lat} />
+                                <input type="hidden" name="lng" value={origin.lng} />
+                            </>
+                        )}
+
+                        <div className="flex flex-wrap items-start gap-3">
                         <label htmlFor="search" className="sr-only">Search</label>
-                        <div className="relative max-w-md">
+                        <div className="relative w-full max-w-md">
                             <div className="pointer-events-none absolute inset-y-0 flex items-center pl-3">
                                 <svg className="h-4 w-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
                                      width="24" height="24" fill="none" viewBox="0 0 24 24">
@@ -93,6 +130,25 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                             </button>
                         </div>
 
+                            <NearMeButton isLocated={isLocated} />
+                        </div>
+
+                        {isLocated && (
+                            <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                                <span className="font-medium text-gray-900">
+                                    Sorted by distance from your location
+                                </span>
+                                {/* a link rather than a button: it navigates to the
+                                    unlocated URL, keeping the term and the tags */}
+                                <Link
+                                    to={withoutPositionQuery === '' ? '/search-page' : `/search-page?${withoutPositionQuery}`}
+                                    className="font-medium text-amber-800 underline hover:text-amber-900"
+                                >
+                                    Clear location
+                                </Link>
+                            </p>
+                        )}
+
                         <TagFilter options={filterOptions} selectedInterestIds={selectedInterestIds} />
 
                         {hasFilters && (
@@ -100,7 +156,7 @@ export default function SearchPage({ loaderData }: Route.ComponentProps) {
                                 {/* a link, not a reset button: it navigates to the
                                     unfiltered URL, keeping the term the visitor typed */}
                                 <Link
-                                    to={searchTerm === '' ? '/search-page' : `/search-page?q=${encodeURIComponent(searchTerm)}`}
+                                    to={withoutTagsQuery === '' ? '/search-page' : `/search-page?${withoutTagsQuery}`}
                                     className="text-sm font-medium text-amber-800 underline hover:text-amber-900"
                                 >
                                     Clear tag filters

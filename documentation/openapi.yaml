@@ -191,7 +191,7 @@ paths:
   ###########################################################################
   /apis/shops:
     get:
-      summary: List shops, optionally filtered by a search term and by tag
+      summary: List shops, optionally filtered by a search term and by tag, optionally nearest-first
       operationId: listShops
       tags: [Shop]
       parameters:
@@ -218,16 +218,39 @@ paths:
             type: array
             maxItems: 100
             items: { $ref: '#/components/schemas/Uuid' }
+        - name: lat
+          in: query
+          required: false
+          description: >-
+            The caller's latitude. Together with `lng` this switches the
+            ordering to nearest-first and adds `distanceMiles` to every shop
+            returned. It sorts; it does not filter — there is no radius, so the
+            same shops come back in a different order, and a caller far from
+            every shop still gets the full list. Combines with `q` and
+            `interestId`, which do the filtering. Supplying `lat` without
+            `lng` (or the reverse) is a 400 rather than a silently ignored
+            half-position. Callers are encouraged to round to 3 decimal places
+            (~110 m, well inside useful precision for this) so a shared or
+            logged URL does not carry someone's exact coordinates.
+          schema: { type: number, format: double, minimum: -90, maximum: 90 }
+        - name: lng
+          in: query
+          required: false
+          description: >-
+            The caller's longitude. See `lat` — the two are supplied together
+            or not at all.
+          schema: { type: number, format: double, minimum: -180, maximum: 180 }
       responses:
         '200':
           description: >-
             All shops, or those matching every filter supplied. Ordered by
+            ascending distance when `lat` and `lng` were given, otherwise by
             name.
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Shop' }
+                items: { $ref: '#/components/schemas/ShopWithDistance' }
         '400': { $ref: '#/components/responses/BadRequest' }
 
   /apis/shops/{id}:
@@ -921,6 +944,31 @@ components:
         lng: { type: number, format: double, minimum: -180, maximum: 180 }
         phone: { type: string, minLength: 10, maxLength: 31 }
         imageUrl: { type: string, format: uri, maxLength: 255 }
+
+    ShopWithDistance:
+      allOf:
+        - $ref: '#/components/schemas/Shop'
+        - type: object
+          description: >-
+            What `listShops` returns. `distanceMiles` is the one optional field
+            in the shop responses, and deliberately so: it is computed per
+            request from the caller's position rather than stored, so a search
+            with no `lat`/`lng` has nothing to report and omits the key
+            entirely. Absent means "not asked for", NOT "unknown" or "zero" —
+            clients should test for presence to decide whether to render a
+            distance at all, rather than defaulting it to 0 and claiming every
+            shop is underfoot.
+          properties:
+            distanceMiles:
+              type: number
+              format: double
+              minimum: 0
+              description: >-
+                Great-circle (haversine) distance from the supplied `lat`/`lng`
+                to the shop, in statute miles. As the crow flies, not driving
+                distance — a shop across a river or an interstate can be a
+                short `distanceMiles` and a long trip, so UI copy should say
+                "away" rather than promising a travel time.
 
     Interest:
       type: object
