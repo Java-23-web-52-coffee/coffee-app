@@ -9,6 +9,7 @@ import {postSignIn, type SignIn} from "~/utils/models/sign-in.model";
 import {FieldError} from "~/components/FieldError";
 import {StatusMessage} from "~/components/StatusMessage";
 import {SignInSchema} from "~/utils/models/sign-in.model";
+import {getMyPreferences} from "~/utils/models/preference.model";
 import type {Route} from "./+types/sign-in";
 import {commitSession, getSession} from "~/utils/session.server";
 import {ProfileSchema} from "~/utils/models/profile.model";
@@ -71,7 +72,31 @@ console.log("hello world")
     if (expressSessionCookie) {
         responseHeaders.append('Set-Cookie', expressSessionCookie)
     }
-    return redirect('/preferences', {headers: responseHeaders})
+    // Land on home — the matches are the product. The exception is a profile
+    // that has never been through the preferences form: sign-up does not
+    // redirect anywhere, so this is the only place that onboarding nudge can
+    // happen.
+    //
+    // The browser has not received the new express session cookie yet — it
+    // exists only as a Set-Cookie header on this response — so forward its
+    // name=value pair by hand to make one authenticated read before
+    // redirecting. GET /preferences is guarded by isLoggedInController, which
+    // needs the session cookie AND the CSRF token in Authorization.
+    const forwardCookie = expressSessionCookie?.split(';')[0] ?? null
+
+    let target = '/'
+    try {
+        const preferences = await getMyPreferences(authorization, forwardCookie)
+        if (preferences.length === 0) {
+            target = '/preferences'
+        }
+    } catch (error) {
+        // A failed lookup must never block a successful sign-in. Home degrades
+        // to its "No matches yet" card, which links to preferences anyway.
+        console.error('could not check preferences on sign-in:', error)
+    }
+
+    return redirect(target, {headers: responseHeaders})
 }
 
 export default function SignIn() {
