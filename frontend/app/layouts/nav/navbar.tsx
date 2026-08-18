@@ -6,6 +6,7 @@ import {
     NavbarLink,
     NavbarToggle,
 } from "flowbite-react";
+import {Save, Search, User} from "lucide-react";
 import {Outlet, useSubmit} from "react-router";
 import {getSession} from "~/utils/session.server";
 import type {Route} from "./+types/navbar";
@@ -35,6 +36,12 @@ export async function loader({request}: Route.LoaderArgs) {
 //
 // Changing the links, the brand size or the type scale means re-measuring.
 // The check is: brand width + link-row width + 47 <= breakpoint.
+//
+// No `dark:` classes here on purpose. Flowbite ships them in its default theme,
+// but nothing else in the app has a dark variant and the bar is hardcoded
+// `bg-white`, so on a browser set to dark mode the inherited `dark:` rules won
+// and painted gray-400 links that turned white-on-white on hover. The app is
+// light-only; the brand colours below apply at every colour scheme.
 const navbarBreakpointOverride = {
     theme: {
         collapse: {
@@ -44,12 +51,12 @@ const navbarBreakpointOverride = {
         link: {
             base: "block py-2 pl-3 pr-4 lg:p-0",
             active: {
-                on: "bg-primary-700 text-white lg:bg-transparent lg:text-primary-700 dark:text-white",
-                off: "border-b border-gray-100 text-gray-700 hover:bg-gray-50 lg:border-0 lg:hover:bg-transparent lg:hover:text-primary-700 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-white lg:dark:hover:bg-transparent lg:dark:hover:text-white",
+                on: "bg-mocha-700 text-white lg:bg-transparent lg:font-semibold lg:text-mocha-700",
+                off: "border-b border-gray-100 text-gray-700 hover:bg-mocha-50 lg:border-0 lg:hover:bg-transparent lg:hover:text-mocha-700",
             },
         },
         toggle: {
-            base: "inline-flex items-center rounded-lg p-2 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 lg:hidden dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600",
+            base: "inline-flex items-center rounded-lg p-2 text-sm text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 lg:hidden",
         },
     },
     clearTheme: {
@@ -83,21 +90,21 @@ const navbarBreakpointOverride = {
 
                      <NavbarLink href="/search-page">
                          <div className="flex items-center gap-1  lg:flex">
-                             <img src={'/search.svg'}  className={"h-6"}/>
+                             <Search className="h-6 w-6" aria-hidden="true"/>
                              <span className={" "}>Search Coffee Shops</span>
                          </div>
                          </NavbarLink>
 
                     <NavbarLink href="/saved">
                         <div className="flex items-center gap-1  lg:flex">
-                            <img src={'/save.svg'}  className={"h-6"}/>
+                            <Save className="h-6 w-6" aria-hidden="true"/>
                             <span>Saved Places</span>
                         </div>
                         </NavbarLink>
 
                     <NavbarLink href="/preferences">
                         <div className="flex items-center gap-1  lg:flex">
-                            <img src={'/user.svg'}  className={"h-6"}/>
+                            <User className="h-6 w-6" aria-hidden="true"/>
                             <span>Preferences</span>
                         </div>
                     </NavbarLink>
@@ -111,14 +118,14 @@ const navbarBreakpointOverride = {
                             }}
                         >
                             <div className="flex items-center gap-1  lg:flex">
-                                <img src={'/user.svg'}  className={"h-6"}/>
+                                <User className="h-6 w-6" aria-hidden="true"/>
                                 <span>Sign Out</span>
                             </div>
                         </NavbarLink>
                     ) : (
                         <NavbarLink href="/sign-up">
                             <div className="flex items-center gap-1  lg:flex">
-                                <img src={'/user.svg'}  className={"h-6"}/>
+                                <User className="h-6 w-6" aria-hidden="true"/>
                                 <span>Sign Up</span>
                             </div>
                         </NavbarLink>
