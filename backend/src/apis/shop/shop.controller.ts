@@ -1,18 +1,103 @@
 import type {Request, Response} from 'express';
-import {selectShopById, insertShop, selectAllShops} from "./shop.model.ts";
+import {
+    selectShopById,
+    insertShop,
+    selectShops,
+    selectShopsByFavoriteProfileId
+} from "./shop.model.ts";
 import {sendError, sendServerError, sendZodError} from "../../utils/response.utils.ts";
 import {type Shop, ShopSchema} from "./shop.model.ts";
+import {selectShopIdsWithAllTags} from "../tags/tags.model.ts";
 import {v7 as uuidv7} from 'uuid';
 import {z} from 'zod/v4'
 
+// Express hands back a bare string for one ?interestId= and an array for
+// several, so both shapes are normalised before validation — the same idiom
+// the shop-tags listing uses for its repeatable shopId
+const InterestIdQueryModel = z.union([
+    z.uuidv7('Please provide a valid uuid for interestId'),
+    z.uuidv7('Please provide a valid uuid for interestId').array().max(100)
+])
+    .optional()
+    .transform(value => value === undefined ? undefined : (Array.isArray(value) ? value : [value]))
 
+// `?lat=` arrives as an empty string, and Number('') is 0 — a perfectly valid
+// latitude out on the equator, which is not the "absent" the caller meant. The
+// blank is dropped before coercion, the same way a blank q collapses below
+const blankToUndefined = (value: unknown): unknown =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value
 
-
+// The caller's position. Validated as a pair because half of one locates
+// nothing: quietly ignoring a stray lat would hand back a name-ordered list to
+// a client that asked for nearest-first, which looks like a server bug from the
+// outside. Bounds run after coercion, since Express hands back only strings
+const OriginQueryModel = z.object({
+    lat: z.preprocess(blankToUndefined, z.coerce
+        .number('Please provide a valid latitude')
+        .min(-90)
+        .max(90)
+        .optional()),
+    lng: z.preprocess(blankToUndefined, z.coerce
+        .number('Please provide a valid longitude')
+        .min(-180)
+        .max(180)
+        .optional())
+})
+    .refine(position => (position.lat === undefined) === (position.lng === undefined), {
+        message: 'Please provide both lat and lng, or neither'
+    })
+    // collapses to a single optional value, so the model takes one argument
+    // that is either a whole position or nothing at all
+    .transform(position => position.lat === undefined || position.lng === undefined
+        ? undefined
+        : {lat: position.lat, lng: position.lng})
 
 export async function getAllShopsController(request: Request, response: Response):Promise<void> {
-    //run select all shops function
     try {
-        const shops = await selectAllShops()
+        // an absent or blank q means "list everything", so empty strings collapse to undefined
+        const validationResult = z.string('Please provide a valid search term')
+            .trim()
+            .max(63)
+            .transform(term => term.length === 0 ? undefined : term)
+            .optional()
+            .safeParse(request.query.q)
+        if (!validationResult.success) {
+            sendZodError(request, response, validationResult.error)
+            return
+        }
+        const searchTerm = validationResult.data
+
+        const interestResult = InterestIdQueryModel.safeParse(request.query.interestId)
+        if (!interestResult.success) {
+            sendZodError(request, response, interestResult.error)
+            return
+        }
+        const interestIds = interestResult.data
+
+        const originResult = OriginQueryModel.safeParse({lat: request.query.lat, lng: request.query.lng})
+        if (!originResult.success) {
+            sendZodError(request, response, originResult.error)
+            return
+        }
+        const origin = originResult.data
+
+        // with no tags selected the tag aggregation never runs, so the plain
+        // search costs exactly what it did before
+        const shopIds = interestIds === undefined
+            ? undefined
+            : await selectShopIdsWithAllTags(interestIds)
+
+        // no shop cleared every selected tag. This has to answer with an empty
+        // list rather than fall through, because an undefined restriction means
+        // "no filter" and would return every shop
+        if (shopIds !== undefined && shopIds.length === 0) {
+            response.json([])
+            return
+        }
+
+        //run the shop listing, narrowed by whichever filters were supplied and
+        //ordered nearest-first when the caller sent a position
+        const shops = await selectShops(searchTerm, shopIds, origin)
 
         //prepare response with shops from database
         response.json(shops)
@@ -50,7 +135,7 @@ const {address, hours, lat, lng, name, phone, imageUrl} = validationResult.data
     const createdShop = await insertShop(shop)
         response
             .status(201)
-            .location(`/apis/shop/${shop.id}`)
+            .location(`/apis/shops/${shop.id}`)
             .json(createdShop)
 
 
@@ -81,5 +166,20 @@ export async function getShopByIdController(request: Request, response: Response
         console.error(error)
         sendServerError(request, response)
 
+    }
+}
+
+export async function getShopsByFavoriteProfileId ( request: Request, response: Response)  {
+    try{
+        const profile = request.session.profile
+        if (profile === undefined || profile === null) {
+            sendError(request, response, 401, 'Please login to post a visit')
+            return
+        }
+        const shop = await selectShopsByFavoriteProfileId(profile.id)
+        response.status(200).json(shop)
+    } catch (error) {
+        console.error(error)
+        response.status(500).json({error: 'failed to get shop'})
     }
 }

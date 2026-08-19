@@ -160,18 +160,20 @@ export default function SignUp() {
 
                 <button
                     type="submit"
-                    className="mx-auto block rounded-md bg-blue-600 px-6 py-2 mt-5 text-white hover:bg-blue-700 transition"
+                    className="mx-auto block rounded-md bg-mocha-700 px-6 py-2 mt-5 text-white hover:bg-mocha-800 transition"
                 >
                     Sign up
                 </button>
                 <StatusMessage actionData={actionData} />
 
                 {/*sign in link*/}
-                <Link
-                    to="/sign-in"
-                >
-                    Already have an account? Sign in
-                </Link>
+                <div className="mt-4 text-center">
+                    <Link
+                        to="/sign-in"
+                    >
+                        Already have an account? Sign in
+                    </Link>
+                </div>
 
             </Form>
 

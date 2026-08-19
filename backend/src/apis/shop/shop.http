@@ -1,0 +1,141 @@
+### Shop endpoints
+#
+# listShops is a public read: no session cookie, no CSRF token. The position
+# params sort rather than filter, so the located requests below must return the
+# SAME shops as the unlocated one, only reordered and carrying distanceMiles.
+
+@host = http://localhost:8080
+@shops = {{host}}/apis/shops
+
+# downtown Albuquerque, rounded to the 3 decimals the client sends
+@lat = 35.084
+@lng = -106.650
+
+
+### 200 — every shop, ordered by name. No distanceMiles key on any shop.
+GET {{shops}}
+Accept: application/json
+
+
+### 200 — term filter only. Still name-ordered, still no distanceMiles.
+GET {{shops}}?q=coffee
+Accept: application/json
+
+
+### 200 — located. Nearest first, every shop carries distanceMiles >= 0.
+GET {{shops}}?lat={{lat}}&lng={{lng}}
+Accept: application/json
+
+
+### 200 — term AND position compose: the term narrows, the position orders.
+GET {{shops}}?q=coffee&lat={{lat}}&lng={{lng}}
+Accept: application/json
+
+
+### 200 — a position far from every shop still returns the full list.
+# Proves there is no radius: this is a sort, not a filter.
+GET {{shops}}?lat=-33.868&lng=151.209
+Accept: application/json
+
+
+### 200 — exact bounds are valid coordinates, not off-by-one rejections.
+GET {{shops}}?lat=90&lng=180
+Accept: application/json
+
+
+### 200 — a blank pair reads as "no position", not as 0,0 on the equator.
+GET {{shops}}?lat=&lng=
+Accept: application/json
+
+
+### 400 — lat without lng. Half a coordinate pair locates nothing.
+GET {{shops}}?lat={{lat}}
+Accept: application/json
+
+
+### 400 — lng without lat, the mirror case.
+GET {{shops}}?lng={{lng}}
+Accept: application/json
+
+
+### 400 — latitude out of range (>90).
+GET {{shops}}?lat=91&lng=0
+Accept: application/json
+
+
+### 400 — longitude out of range (<-180).
+GET {{shops}}?lat=0&lng=-181
+Accept: application/json
+
+
+### 400 — non-numeric coordinates.
+GET {{shops}}?lat=abc&lng=def
+Accept: application/json
+
+
+### 400 — repeated param arrives as an array, which is not a coordinate.
+GET {{shops}}?lat=1&lat=2&lng=0
+Accept: application/json
+
+
+### 400 — search term over the 63-character maximum.
+GET {{shops}}?q=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+Accept: application/json
+
+
+### 400 — interestId that is not a uuidv7.
+GET {{shops}}?interestId=not-a-uuid
+Accept: application/json
+
+
+### 200 — one shop by id. Replace with an id from the listing above.
+GET {{shops}}/01997d0a-0000-7000-8000-000000000000
+Accept: application/json
+
+
+### 400 — malformed uuid in the path.
+GET {{shops}}/not-a-uuid
+Accept: application/json
+
+
+### 404 — well-formed uuid that matches no shop.
+GET {{shops}}/01999999-9999-7999-8999-999999999999
+Accept: application/json
+
+
+### 201 — create a shop. Location must be /apis/shops/{id}, matching the
+# base path this router is mounted at, so following it resolves.
+POST {{shops}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "name": "Test Roasters",
+  "address": "123 Central Ave SE, Albuquerque, NM 87102",
+  "hours": { "monday": "7am-3pm", "tuesday": "7am-3pm" },
+  "lat": 35.0844,
+  "lng": -106.6504,
+  "phone": "5055550123",
+  "imageUrl": "https://example.com/test-roasters.jpg"
+}
+
+
+### 400 — create with coordinates out of range.
+POST {{shops}}
+Content-Type: application/json
+
+{
+  "id": null,
+  "name": "Nowhere Coffee",
+  "address": "123 Nowhere",
+  "hours": {},
+  "lat": 200,
+  "lng": 500,
+  "phone": "5055550123",
+  "imageUrl": "https://example.com/nowhere.jpg"
+}
+
+
+### 401 — favorites listing requires a session.
+GET {{shops}}/favorite/profile
+Accept: application/json

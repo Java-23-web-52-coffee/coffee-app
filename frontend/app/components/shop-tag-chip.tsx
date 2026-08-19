@@ -1,0 +1,45 @@
+import type {ShopTag} from "~/utils/models/shop-tag.model";
+
+/**
+ * ShopTagChip Component
+ *
+ * Renders one derived tag as a chip: the interest's label plus the number of
+ * people behind it.
+ *
+ * The count is not decoration. A tag is an aggregate over other people's
+ * ratings, and three people is a very different claim from thirty, so the
+ * chip always carries its own evidence — visually as "· 3", and for screen
+ * readers as ", from 3 people" so the bare number is never read without
+ * context.
+ *
+ * @param tag - a derived tag: the interest it was earned on, and the count
+ * @param size - 'md' (default) for detail pages, 'sm' for dense contexts like ShopCard
+ *
+ * @returns a single <li> chip, so callers own the surrounding <ul> and its layout
+ */
+
+type ShopTagChipProps = {
+    tag: ShopTag
+    size?: 'sm' | 'md'
+}
+
+const SIZE_CLASSES = {
+    sm: 'px-2 py-0.5 text-xs',
+    md: 'px-3 py-1 text-sm'
+} as const
+
+export function ShopTagChip(props: ShopTagChipProps) {
+    const {tag, size = 'md'} = props
+
+    return (
+        <li
+            className={`rounded-full border border-mocha-200 bg-mocha-100 font-medium text-mocha-900 ${SIZE_CLASSES[size]}`}
+        >
+            {tag.interest.category}
+            <span aria-hidden="true" className="ml-1.5 text-mocha-700">
+                · {tag.count}
+            </span>
+            <span className="sr-only">, from {tag.count} people</span>
+        </li>
+    )
+}

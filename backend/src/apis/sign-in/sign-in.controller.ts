@@ -43,7 +43,7 @@ export async function signInController (request: Request, response: Response) : 
 
         const isPasswordValid = await validatePassword(profile.passwordHash, password)
         if(!isPasswordValid) {
-            sendError(request, response, 401, 'Email or password is incorrect please try again.')
+            sendError(request, response, 401, 'Email or password is incorrect please try again')
             return
         }
 

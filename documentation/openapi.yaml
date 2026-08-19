@@ -32,6 +32,7 @@ tags:
   - name: Preference
   - name: Rating
   - name: Match
+  - name: Tag
 
 paths:
   ###########################################################################
@@ -190,17 +191,67 @@ paths:
   ###########################################################################
   /apis/shops:
     get:
-      summary: List shops
+      summary: List shops, optionally filtered by a search term and by tag, optionally nearest-first
       operationId: listShops
       tags: [Shop]
+      parameters:
+        - name: q
+          in: query
+          required: false
+          description: >-
+            Case-insensitive substring match against the shop's name or
+            address. Omit to list every shop. A term that matches nothing
+            returns an empty array, not a 404.
+          schema: { type: string, minLength: 1, maxLength: 63 }
+        - name: interestId
+          in: query
+          required: false
+          description: >-
+            Repeatable. Narrows the result to shops that qualify for EVERY one
+            of these interests (`?interestId=a&interestId=b` means both, not
+            either), using the same thresholds as `listShopTags`. Combines
+            with `q`. An id matching no interest contributes no shops rather
+            than a 404 — this is a filter, not a resource lookup.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 100
+            items: { $ref: '#/components/schemas/Uuid' }
+        - name: lat
+          in: query
+          required: false
+          description: >-
+            The caller's latitude. Together with `lng` this switches the
+            ordering to nearest-first and adds `distanceMiles` to every shop
+            returned. It sorts; it does not filter — there is no radius, so the
+            same shops come back in a different order, and a caller far from
+            every shop still gets the full list. Combines with `q` and
+            `interestId`, which do the filtering. Supplying `lat` without
+            `lng` (or the reverse) is a 400 rather than a silently ignored
+            half-position. Callers are encouraged to round to 3 decimal places
+            (~110 m, well inside useful precision for this) so a shared or
+            logged URL does not carry someone's exact coordinates.
+          schema: { type: number, format: double, minimum: -90, maximum: 90 }
+        - name: lng
+          in: query
+          required: false
+          description: >-
+            The caller's longitude. See `lat` — the two are supplied together
+            or not at all.
+          schema: { type: number, format: double, minimum: -180, maximum: 180 }
       responses:
         '200':
-          description: All shops.
+          description: >-
+            All shops, or those matching every filter supplied. Ordered by
+            ascending distance when `lat` and `lng` were given, otherwise by
+            name.
           content:
             application/json:
               schema:
                 type: array
-                items: { $ref: '#/components/schemas/Shop' }
+                items: { $ref: '#/components/schemas/ShopWithDistance' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /apis/shops/{id}:
     get:
@@ -220,6 +271,99 @@ paths:
               schema: { $ref: '#/components/schemas/Shop' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '404': { $ref: '#/components/responses/NotFound' }
+
+  ###########################################################################
+  # Tag — computed, read-only; no table of its own (derived from
+  # visit + rating, aggregated per interest)
+  ###########################################################################
+  /apis/shops/{shopId}/tags:
+    get:
+      summary: List a shop's derived tags
+      description: >-
+        Tags are not stored. A shop earns a tag on an interest when the
+        average of its raters' scores for that interest is at least 4.0,
+        drawn from at least 3 distinct profiles.
+
+
+        Each rater contributes exactly one score per interest — their most
+        recent one. A rater who logs several visits does not count several
+        times. When a rater's most recent visit skipped an interest, their
+        earlier score for that interest still counts; only a newer score for
+        the same interest supersedes an older one.
+
+
+        Public: the response is aggregate data and identifies no profile, so
+        it carries no `security`, matching `listShops`.
+      operationId: listShopTags
+      tags: [Tag]
+      parameters:
+        - name: shopId
+          in: path
+          required: true
+          schema: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: >-
+            Qualifying tags, ordered by descending average score with ties
+            broken on category so the order is stable across requests. A shop
+            whose interests clear neither threshold returns an empty array,
+            not a 404 — the frontend renders its "no tags yet" state from an
+            empty array.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ShopTag' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /apis/shop-tags:
+    get:
+      summary: List derived tags for many shops at once
+      description: >-
+        The same aggregation as `listShopTags`, grouped by shop as well as
+        interest, so a page of search results costs one request instead of one
+        per card.
+
+
+        Deliberately not mounted at `/apis/shops/tags`: `getShopById` claims
+        the single-segment `/apis/shops/{id}`, so `tags` would be read as a
+        shop id and rejected as a malformed uuid.
+
+
+        Filtering by `shopId` is a filter, not a resource lookup — ids that
+        match no shop simply contribute no rows. Unlike `listShopTags` this
+        endpoint has no 404, because there is no single resource for it to be
+        about.
+      operationId: listShopTagsForShops
+      tags: [Tag]
+      parameters:
+        - name: shopId
+          in: query
+          required: false
+          description: >-
+            Repeatable. Narrows the result to these shops
+            (`?shopId=a&shopId=b`). Omit to get every shop that has at least
+            one qualifying tag.
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 100
+            items: { $ref: '#/components/schemas/Uuid' }
+      responses:
+        '200':
+          description: >-
+            Every qualifying tag for the requested shops, ordered by shop and
+            then by descending average score. A shop with no qualifying tags
+            contributes no rows at all rather than an empty group, so callers
+            should treat a missing shopId as "no tags".
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ShopTagListing' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   ###########################################################################
   # Interest — read-only reference data (the taxonomy preferences/ratings use)
@@ -262,8 +406,17 @@ paths:
   ###########################################################################
   /apis/profiles/me/visits:
     post:
-      summary: Log a visit
-      description: profileId is taken from the session, never the request body.
+      summary: Log a visit and its ratings
+      description: >-
+        profileId is taken from the session, never the request body.
+
+
+        A visit and the ratings collected for it are created together in one
+        transaction — there is no way to add a rating to an existing visit,
+        and a logged experience cannot be edited afterwards. Either the
+        visit row and every rating row commit, or nothing does: an invalid
+        `interestId` anywhere in the array leaves no visit behind. See
+        `documentation/experience-log-plan.md`.
       operationId: createVisit
       tags: [Visit]
       security:
@@ -276,15 +429,21 @@ paths:
             schema: { $ref: '#/components/schemas/VisitRequest' }
       responses:
         '201':
-          description: Visit logged.
+          description: Visit logged, with the ratings that were saved with it.
           headers:
             Location: { schema: { type: string } }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Visit' }
+              schema: { $ref: '#/components/schemas/LoggedVisit' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
-        '404': { $ref: '#/components/responses/NotFound' }
+        '404':
+          description: >-
+            No shop exists with that `shopId`, or one of the `interestId`
+            values does not exist. Nothing was written.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
     get:
       summary: List the signed-in profile's visits
       operationId: listMyVisits
@@ -479,6 +638,12 @@ paths:
 
   ###########################################################################
   # Rating — association (visitId, interestId, value); scoped under its visit
+  #
+  # NOTE: ratings are normally created as part of POST /apis/profiles/me/visits,
+  # which writes a visit and its ratings in one transaction. The per-rating
+  # POST and PUT below have no caller in the frontend: a visit is never
+  # created without its ratings, and a logged experience cannot be edited.
+  # They remain mounted but unused — see documentation/experience-log-plan.md.
   ###########################################################################
   /apis/visits/{visitId}/ratings:
     post:
@@ -591,24 +756,43 @@ paths:
 
   ###########################################################################
   # Match — computed, read-only; no table of its own (derived from
-  # preference + rating, see documentation/matching-algorithm.md)
+  # preference + rating, see documentation/matching-api-plan.md)
   ###########################################################################
   /apis/profiles/me/matches:
     get:
-      summary: List shops ranked by nearest match to the signed-in profile's preferences
+      summary: List shops ranked by how well they match the signed-in profile's preferences
+      description: >-
+        `preference.importance` acts as a weight, never as a target: a "must"
+        pulls twice as hard as a "nice", and a shop is never penalised for
+        scoring higher than asked. `importance` 0 ("no") means "I don't care"
+        and drops out of the calculation entirely.
+
+
+        Each rater contributes one score per interest — their most recent —
+        so somebody who visits five times does not outvote five people who
+        visited once. Shops with no rating at all on any interest the profile
+        weighted are excluded rather than ranked on neutral defaults.
+
+
+        See `documentation/matching-api-plan.md`.
       operationId: listMyMatches
       tags: [Match]
       security:
         - sessionCookie: []
+          csrfToken: []
       parameters:
         - name: limit
           in: query
           required: false
-          description: Max number of matches to return.
+          description: Max number of matches to return. Out of range is a 400, not a clamp.
           schema: { type: integer, minimum: 1, maximum: 25, default: 5 }
       responses:
         '200':
-          description: Shops ranked by ascending matchScore (closer = better match). Empty array if the profile has no preferences yet or no shop has overlapping ratings.
+          description: >-
+            Shops ranked by descending matchScore (higher = better match), ties
+            broken on shop name for a stable order. Empty array if the profile
+            has no preferences yet, weighted every interest at 0, or no shop has
+            an overlapping rating.
           content:
             application/json:
               schema:
@@ -713,7 +897,7 @@ components:
     SignUpRequest:
       type: object
       required: [name, email, password, passwordConfirm]
-      description: The server owns id, passwordHash, and activationToken.
+      description: The server owns id, passwordHash, and activationToken. password and passwordConfirm must match (SignUpProfileSchema.refine); a mismatch is a 400 validation error, not a distinct field-level constraint.
       properties:
         name: { type: string, minLength: 1, maxLength: 63 }
         email: { type: string, format: email, maxLength: 127 }
@@ -738,27 +922,61 @@ components:
     # ------------------------------------------------------------------
     Shop:
       type: object
-      required: [id, name]
+      required: [id, name, address, hours, lat, lng, phone, imageUrl]
+      description: All fields are required by ShopSchema — none are optional or nullable except id (nullable only pre-insert, before the server assigns a uuidv7).
       properties:
         id: { $ref: '#/components/schemas/Uuid' }
         name: { type: string, minLength: 1, maxLength: 63 }
-        address: { type: string, nullable: true, maxLength: 255 }
+        address: { type: string }
         hours:
           type: object
-          nullable: true
-          additionalProperties: true
-          description: Opening hours, shape TBD by frontend needs.
-        lat: { type: number, format: double, nullable: true, minimum: -90, maximum: 90 }
-        lng: { type: number, format: double, nullable: true, minimum: -180, maximum: 180 }
-        phone: { type: string, nullable: true, maxLength: 31 }
-        imageUrl: { type: string, format: uri, nullable: true, maxLength: 255 }
+          description: Opening hours by day. All keys optional; each value has no minimum length.
+          additionalProperties: false
+          properties:
+            monday: { type: string, maxLength: 32 }
+            tuesday: { type: string, maxLength: 32 }
+            wednesday: { type: string, maxLength: 32 }
+            thursday: { type: string, maxLength: 32 }
+            friday: { type: string, maxLength: 32 }
+            saturday: { type: string, maxLength: 32 }
+            sunday: { type: string, maxLength: 32 }
+        lat: { type: number, format: double, minimum: -90, maximum: 90 }
+        lng: { type: number, format: double, minimum: -180, maximum: 180 }
+        phone: { type: string, minLength: 10, maxLength: 31 }
+        imageUrl: { type: string, format: uri, maxLength: 255 }
+
+    ShopWithDistance:
+      allOf:
+        - $ref: '#/components/schemas/Shop'
+        - type: object
+          description: >-
+            What `listShops` returns. `distanceMiles` is the one optional field
+            in the shop responses, and deliberately so: it is computed per
+            request from the caller's position rather than stored, so a search
+            with no `lat`/`lng` has nothing to report and omits the key
+            entirely. Absent means "not asked for", NOT "unknown" or "zero" —
+            clients should test for presence to decide whether to render a
+            distance at all, rather than defaulting it to 0 and claiming every
+            shop is underfoot.
+          properties:
+            distanceMiles:
+              type: number
+              format: double
+              minimum: 0
+              description: >-
+                Great-circle (haversine) distance from the supplied `lat`/`lng`
+                to the shop, in statute miles. As the crow flies, not driving
+                distance — a shop across a river or an interstate can be a
+                short `distanceMiles` and a long trip, so UI copy should say
+                "away" rather than promising a travel time.
 
     Interest:
       type: object
       required: [id, category]
+      description: InterestModel enforces no length constraints on category beyond being a string.
       properties:
         id: { $ref: '#/components/schemas/Uuid' }
-        category: { type: string, minLength: 1, maxLength: 127 }
+        category: { type: string }
 
     # ------------------------------------------------------------------
     # Visit — first-class entity, scoped to a profile
@@ -774,10 +992,35 @@ components:
 
     VisitRequest:
       type: object
-      required: [shopId]
-      description: Server owns id, profileId (from session), and createdAt.
+      required: [shopId, ratings]
+      description: >-
+        Server owns id, profileId (from session), and createdAt. The ratings
+        collected for the visit are part of the same request because a visit
+        and its ratings are written in one transaction — `ratings` carries
+        `RatingRequest` entries whose `visitId` is the visit being created.
       properties:
         shopId: { $ref: '#/components/schemas/Uuid' }
+        ratings:
+          type: array
+          minItems: 1
+          description: >-
+            At least one rating. A rater is not required to score every
+            interest — skipped interests are absent from the array, which the
+            tag and match aggregations already handle. Duplicate
+            `interestId` values are rejected: `rating`'s primary key is
+            (visit_id, interest_id).
+          items: { $ref: '#/components/schemas/RatingRequest' }
+
+    LoggedVisit:
+      allOf:
+        - $ref: '#/components/schemas/Visit'
+        - type: object
+          required: [ratings]
+          properties:
+            ratings:
+              type: array
+              description: The rating rows committed alongside this visit.
+              items: { $ref: '#/components/schemas/Rating' }
 
     # ------------------------------------------------------------------
     # Favorite — association; no surrogate id
@@ -790,7 +1033,9 @@ components:
         shopId: { $ref: '#/components/schemas/Uuid' }
 
     # ------------------------------------------------------------------
-    # Preference — association; importance is a 1-5 weight
+    # Preference — association; importance is a 0-1 weight. 0 is a real,
+    # persisted "no" answer, not "unrated" — it overwrites rather than
+    # deletes a previously saved preference.
     # ------------------------------------------------------------------
     Preference:
       type: object
@@ -798,7 +1043,7 @@ components:
       properties:
         profileId: { $ref: '#/components/schemas/Uuid' }
         interestId: { $ref: '#/components/schemas/Uuid' }
-        importance: { type: number, minimum: 1, maximum: 5 }
+        importance: { type: number, minimum: 0, maximum: 1 }
 
     PreferenceRequest:
       type: object
@@ -806,13 +1051,13 @@ components:
       description: Server owns profileId (from session).
       properties:
         interestId: { $ref: '#/components/schemas/Uuid' }
-        importance: { type: number, minimum: 1, maximum: 5 }
+        importance: { type: number, minimum: 0, maximum: 1 }
 
     PreferenceUpdateRequest:
       type: object
       required: [importance]
       properties:
-        importance: { type: number, minimum: 1, maximum: 5 }
+        importance: { type: number, minimum: 0, maximum: 1 }
 
     # ------------------------------------------------------------------
     # Rating — association scoped under a visit; value is a 1-5 score
@@ -847,8 +1092,80 @@ components:
       allOf:
         - $ref: '#/components/schemas/Shop'
         - type: object
-          required: [matchScore]
+          required: [matchScore, matchQuality, ratedInterestCount, preferenceCount]
+          description: >-
+            Clients are expected to render `matchQuality`, NOT `matchScore`.
+            Scores cluster in the 50-75 range by construction — an unrated
+            interest contributes the neutral midpoint, and only a shop averaging
+            a straight 5 on every weighted interest reaches 100 — so a bare 68
+            reads like a poor grade when it is in fact a strong match.
           properties:
             matchScore:
-              type: number
-              description: Weighted Euclidean distance to the profile's preference vector. Lower is a closer match.
+              type: integer
+              minimum: 0
+              maximum: 100
+              description: >-
+                Weighted average of the shop's normalized ratings across the
+                interests the profile weighted. Higher is a closer match. This
+                is the ranking key; see the note above before displaying it.
+            matchQuality:
+              type: string
+              enum: [great, good, fair, weak, limited]
+              description: >-
+                The band `matchScore` falls into, and the field the UI renders.
+                Cutoffs are 75 / 60 / 50, chosen because they are the scores a
+                shop reaches by averaging roughly 4 / 3.5 / 3 stars on what the
+                profile cares about. `limited` overrides every other band when
+                too little of the profile's weighted preference mass has a real
+                rating behind it — a high score assembled out of neutral
+                defaults is not a judgment the data supports, so the UI says
+                "not enough ratings yet" rather than naming a quality.
+            ratedInterestCount:
+              type: integer
+              minimum: 0
+              description: How many of the profile's weighted interests this shop has a real rating for.
+            preferenceCount:
+              type: integer
+              minimum: 1
+              description: >-
+                How many interests the profile weighted above 0. With
+                ratedInterestCount this lets the client qualify a score —
+                "based on 2 of your 6 preferences".
+
+    # ------------------------------------------------------------------
+    # ShopTag — computed; one qualifying interest for one shop. No table
+    # backs this: it is an aggregate over visit + rating, so a tag appears
+    # and disappears as people rate the shop.
+    # ------------------------------------------------------------------
+    ShopTag:
+      type: object
+      required: [interest, count]
+      description: >-
+        A tag is the interest a shop earned, plus the number of people behind
+        it — the Interest is carried whole rather than restated as loose
+        fields, so the client renders a chip without a second call to
+        /apis/interests.
+
+
+        The average score is deliberately absent. The chip displays the label
+        and the count; publishing a 4.4-vs-4.6 distinction invites
+        comparisons three raters cannot support. Ordering by that average is
+        the server's job.
+      properties:
+        interest: { $ref: '#/components/schemas/Interest' }
+        count:
+          type: integer
+          minimum: 3
+          description: >-
+            Distinct profiles behind the tag, never the number of ratings —
+            a rater with four visits counts once. The minimum of 3 is the
+            support floor; anything below it is not a tag.
+
+    ShopTagListing:
+      description: A ShopTag carrying the shop it belongs to, for the multi-shop endpoint.
+      allOf:
+        - type: object
+          required: [shopId]
+          properties:
+            shopId: { $ref: '#/components/schemas/Uuid' }
+        - $ref: '#/components/schemas/ShopTag'

@@ -1,45 +1,199 @@
-import {Button, Card} from "flowbite-react";
-import {getAllShops, type Shop} from "~/utils/models/shop.model";
+import {getAllShops, readOrigin, type ShopWithDistance} from "~/utils/models/shop.model";
+import {NearMeButton} from "~/components/near-me-button";
 import type { Route } from './+types/search-page';
-import {ShopCard} from "~/routes/shop-card";
+import {ShopCard} from "~/components/shop-card";
+import {
+    collectFilterableTags,
+    getShopTagListings,
+    groupTagsByShopId,
+    type ShopTag,
+    type TagFilterOption
+} from "~/utils/models/shop-tag.model";
+import {TagFilter} from "~/components/tag-filter";
+import {Form, Link, useNavigation} from "react-router";
 
 export async function loader({ request }: Route.LoaderArgs) {
-    const shops: Shop[] = await getAllShops()
-    return{shops}
+    // the URL is the source of truth for the search, so the results are shareable and the back button works
+    const url = new URL(request.url)
+    const searchTerm = url.searchParams.get('q')?.trim() ?? ''
+    // repeatable: the server returns shops carrying every tag listed
+    const selectedInterestIds = url.searchParams.getAll('interestId')
+    // a position sorts nearest-first without filtering, so it never competes
+    // with the term or the tags for which shops come back
+    const origin = readOrigin(url.searchParams)
+
+    const shops: ShopWithDistance[] = await getAllShops(searchTerm, selectedInterestIds, origin)
+
+    // one unscoped request feeds both jobs: the filter chips, and the tags on
+    // each card. Scoping it to the results would make the chip list shrink as
+    // you filter, stranding you with no way back. Tags decorate the results,
+    // so a failure here leaves plain cards instead of failing the search itself
+    let tagsByShopId: Record<string, ShopTag[]> = {}
+    let filterOptions: TagFilterOption[] = []
+    try {
+        const listings = await getShopTagListings()
+        // keyed by shop, so listings for shops outside the results are simply never looked up
+        tagsByShopId = groupTagsByShopId(listings)
+        filterOptions = collectFilterableTags(listings)
+    } catch (error) {
+        console.error('Failed to load tags for search results:', error)
+    }
+
+    return {shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId, origin}
 }
 
-
-
 export default function SearchPage({ loaderData }: Route.ComponentProps) {
-    const { shops } = loaderData;
-    console.log(shops)
+    const { shops, searchTerm, selectedInterestIds, filterOptions, tagsByShopId, origin } = loaderData;
+    const navigation = useNavigation()
+    // any navigation back to this page is a search — testing for `q` would miss
+    // a submit that only changed the tag checkboxes
+    const isSearching = navigation.location?.pathname === '/search-page'
+    const hasFilters = selectedInterestIds.length > 0
+    const isLocated = origin !== undefined
+
+    // the term and tags to keep when clearing the position — dropping lat/lng
+    // should not also throw away what the visitor searched for
+    const withoutPositionParams = new URLSearchParams()
+    if (searchTerm !== '') {
+        withoutPositionParams.set('q', searchTerm)
+    }
+    selectedInterestIds.forEach(interestId => withoutPositionParams.append('interestId', interestId))
+    const withoutPositionQuery = withoutPositionParams.toString()
+
+    // and the mirror of it: clearing the tags keeps the term AND the position,
+    // so a located visitor who drops a tag stays sorted by distance
+    const withoutTagsParams = new URLSearchParams()
+    if (searchTerm !== '') {
+        withoutTagsParams.set('q', searchTerm)
+    }
+    if (origin !== undefined) {
+        withoutTagsParams.set('lat', String(origin.lat))
+        withoutTagsParams.set('lng', String(origin.lng))
+    }
+    const withoutTagsQuery = withoutTagsParams.toString()
+
     return (
-        <>
-            <h1 className={"text-center m-4 text-5xl"}>search page</h1>
-            <form className="max-w-md mx-auto">
-                <label htmlFor="search"
-                       className="block mb-2.5 text-sm font-medium text-heading sr-only ">Search</label>
-                <div className="relative">
-                    <div className="absolute inset-y-0 flex items-center ps-3 pointer-events-none">
-                        <svg className="w-4 h-4 text-body" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
-                             width="24" height="24" fill="none" viewBox="0 0 24 24">
-                            <path stroke="currentColor" stroke-linecap="round" stroke-width="2"
-                                  d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
-                        </svg>
-                    </div>
-                    <input type="search" id="search"
-                           className="block w-full p-3 ps-9 bg-neutral-secondary-medium border border-default-medium text-heading text-sm rounded-base focus:ring-brand focus:border-brand shadow-xs placeholder:text-body"
-                           placeholder="Search" required/>
-                    <button type="button"
-                            className="absolute end-1.5 bottom-1.5 text-white bg-brand hover:bg-brand-strong box-border border border-transparent focus:ring-4 focus:ring-brand-medium shadow-xs font-medium leading-5 rounded text-xs px-3 py-1.5 focus:outline-none">Search
-                    </button>
+        <section className="bg-mocha-50">
+            <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-16">
+                <div className="text-center">
+                    <p className="text-sm font-semibold uppercase tracking-wide text-mocha-700">
+                        Explore cafés
+                    </p>
+
+                    <h1 className="mt-2 text-4xl font-bold text-gray-900 md:text-5xl">
+                        Find a coffee shop
+                    </h1>
+
+                    <p className="mx-auto mt-3 max-w-2xl text-xl text-gray-600 font-bold">
+                        Search cafes by name/location or click &quot;View Details&quot; to
+                        save or rate a shop&rsquo;s experience.
+                    </p>
                 </div>
-            </form>
-            {/*//Coffee shop card*/}
-            <div className={"grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2"}>
-                {shops.map((shop, index) => <ShopCard shop={shop} key={index}/>)}
-                   
+
+                <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
+                    {/* one Form for both filters, so the term and the checked tags
+                        submit together and land in the same URL.
+
+                        The width constraint sits on the search box below rather
+                        than on the form, which is where this branch used to have
+                        it — a max-w-md form would squeeze the tag chips into a
+                        narrow column. */}
+                    <Form method="get">
+                        {/* the position is not a visible field, so without these a
+                            later term-or-tag submit would silently drop it and
+                            reorder the results back to alphabetical */}
+                        {isLocated && (
+                            <>
+                                <input type="hidden" name="lat" value={origin.lat} />
+                                <input type="hidden" name="lng" value={origin.lng} />
+                            </>
+                        )}
+
+                        <div className="flex flex-wrap items-start gap-3">
+                        <label htmlFor="search" className="sr-only">Search</label>
+                        <div className="relative w-full max-w-md">
+                            <div className="pointer-events-none absolute inset-y-0 flex items-center pl-3">
+                                <svg className="h-4 w-4 text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"
+                                     width="24" height="24" fill="none" viewBox="0 0 24 24">
+                                    <path stroke="currentColor" strokeLinecap="round" strokeWidth="2"
+                                          d="m21 21-3.5-3.5M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
+                                </svg>
+                            </div>
+                            <input
+                                type="search"
+                                id="search"
+                                name="q"
+                                // keyed on the term so the box re-syncs when the browser's back button changes the URL
+                                key={searchTerm}
+                                defaultValue={searchTerm}
+                                placeholder="Search by name or location"
+                                className="w-full rounded-md border border-gray-400 px-4 py-3 pl-10 text-gray-900 placeholder:text-gray-500 focus:border-mocha-600 focus:outline-none focus:ring-2 focus:ring-mocha-600"
+                            />
+                            <button
+                                type="submit"
+                                className="absolute inset-y-1.5 right-1.5 rounded-lg bg-mocha-700 px-4 text-sm font-semibold text-white hover:bg-mocha-800 disabled:opacity-70"
+                                disabled={isSearching}
+                            >
+                                {isSearching ? 'Searching…' : 'Search'}
+                            </button>
+                        </div>
+
+                            <NearMeButton isLocated={isLocated} />
+                        </div>
+
+                        {isLocated && (
+                            <p className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                                <span className="font-medium text-gray-900">
+                                    Sorted by distance from your location
+                                </span>
+                                {/* a link rather than a button: it navigates to the
+                                    unlocated URL, keeping the term and the tags */}
+                                <Link
+                                    to={withoutPositionQuery === '' ? '/search-page' : `/search-page?${withoutPositionQuery}`}
+                                    className="font-medium text-mocha-800 underline hover:text-mocha-900"
+                                >
+                                    Clear location
+                                </Link>
+                            </p>
+                        )}
+
+                        <TagFilter options={filterOptions} selectedInterestIds={selectedInterestIds} />
+
+                        {hasFilters && (
+                            <p className="mt-4">
+                                {/* a link, not a reset button: it navigates to the
+                                    unfiltered URL, keeping the term the visitor typed */}
+                                <Link
+                                    to={withoutTagsQuery === '' ? '/search-page' : `/search-page?${withoutTagsQuery}`}
+                                    className="text-sm font-medium text-mocha-800 underline hover:text-mocha-900"
+                                >
+                                    Clear tag filters
+                                </Link>
+                            </p>
+                        )}
+                    </Form>
+
+                    {shops.length === 0 ? (
+                        <p className="mt-8 text-center text-gray-500">
+                            {hasFilters
+                                ? `No cafés carry ${selectedInterestIds.length === 1 ? 'that tag' : 'all of those tags'}${searchTerm === '' ? '' : ` and match “${searchTerm}”`}. Try removing one.`
+                                : searchTerm === ''
+                                    ? 'No cafés found.'
+                                    : `No cafés match “${searchTerm}”. Try a different name or location.`}
+                        </p>
+                    ) : (
+                        <div className={`mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 ${isSearching ? 'opacity-60' : ''}`}>
+                            {shops.map((shop) => (
+                                <ShopCard
+                                    shop={shop}
+                                    tags={shop.id === null ? undefined : tagsByShopId[shop.id]}
+                                    key={shop.id}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
-        </>
+        </section>
     )
 }

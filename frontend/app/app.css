@@ -1,3 +1,37 @@
 @import "tailwindcss";
 @import "flowbite-react/plugin/tailwindcss";
 @source "../.flowbite-react/class-list.json";
+
+@theme {
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Brand palette: "mocha", a cool brown.
+   *
+   * This replaces Tailwind's `amber`, which the whole app used to run on.
+   * Amber is a warm yellow-orange — next to real coffee photography it read as
+   * custard rather than coffee. Mocha keeps the same brown family but pulls the
+   * hue off yellow and drops the saturation, so it sits cooler.
+   *
+   * The two load-bearing steps:
+   *   mocha-50   #f1eae3   every tinted container background (hero, panels,
+   *                        page washes). This is the colour the palette was
+   *                        chosen for.
+   *   mocha-700  #6f5646   primary accent: buttons, links, eyebrow labels.
+   *                        6.8:1 on white, 5.7:1 on mocha-50 — both clear AA.
+   *
+   * The steps mirror Tailwind's own scale one-for-one, so every former
+   * `*-amber-N` class became `*-mocha-N` with no other edit. If you add a step,
+   * keep it monotonic in lightness or the badge and chip styles will invert.
+   */
+  --color-mocha-50: #f1eae3;
+  --color-mocha-100: #e5dbd2;
+  --color-mocha-200: #d6c7ba;
+  --color-mocha-300: #c0ac9c;
+  --color-mocha-400: #a48d7b;
+  --color-mocha-500: #8a7263;
+  --color-mocha-600: #7a6152;
+  --color-mocha-700: #6f5646;
+  --color-mocha-800: #55413a;
+  --color-mocha-900: #3e2f29;
+}

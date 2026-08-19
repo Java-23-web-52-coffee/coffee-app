@@ -6,6 +6,7 @@ import {
     getFavoritesByShopIdController,
     getFavoritesByProfileIdController
 } from './favorites.controller.ts'
+import {isLoggedInController} from "../../utils/controllers/is-logged-in.controller.ts";
 
 // flat routes for the favorite resource; nested equivalents live in shop.route.ts
 const basePath = '/apis/favorites' as const
@@ -16,7 +17,7 @@ const router = Router()
  * Favorite a shop (requires authentication)
  */
 router.route('/')
-    .post(postFavoritesController)
+    .post(isLoggedInController, postFavoritesController)
 
 /**
  * GET /apis/favorite/shop/:shopId
